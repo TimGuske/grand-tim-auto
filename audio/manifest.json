@@ -1,1 +1,38 @@
-{}
+{
+  "spruch-01": {
+    "male": "spruch-01-male-v1.mp3",
+    "female": "spruch-01-female-v1.mp3"
+  },
+  "spruch-02": {
+    "male": "spruch-02-male-v1.mp3",
+    "female": "spruch-02-female-v1.mp3"
+  },
+  "spruch-03": {
+    "male": "spruch-03-male-v1.mp3",
+    "female": "spruch-03-female-v1.mp3"
+  },
+  "spruch-04": {
+    "male": "spruch-04-male-v1.mp3",
+    "female": "spruch-04-female-v1.mp3"
+  },
+  "spruch-05": {
+    "male": "spruch-05-male-v1.mp3",
+    "female": "spruch-05-female-v1.mp3"
+  },
+  "spruch-06": {
+    "male": "spruch-06-male-v1.mp3",
+    "female": "spruch-06-female-v1.mp3"
+  },
+  "spruch-07": {
+    "male": "spruch-07-male-v1.mp3",
+    "female": "spruch-07-female-v1.mp3"
+  },
+  "spruch-08": {
+    "male": "spruch-08-male-v1.mp3",
+    "female": "spruch-08-female-v1.mp3"
+  },
+  "spruch-09": {
+    "male": "spruch-09-male-v1.mp3",
+    "female": "spruch-09-female-v1.mp3"
+  }
+}
