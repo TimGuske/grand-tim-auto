@@ -12,3 +12,7 @@
 - Veröffentlichung über den separaten Zweig `gh-pages`; Quelle auf `main`. Die Actions-Vorlage liegt inaktiv unter `deployment/`, da die vorhandene Anmeldung keine Workflow-Schreibberechtigung besitzt.
 
 Noch offen: echte Mehrfinger-Eingabe, Leistung, Darstellung mit Safe Areas und Sprachqualität auf einem echten iPhone/Android-Gerät. Die Szene ist eine freie Stilisierung; Gebäude und Figuren sind für den Prototyp prozedural erzeugt.
+
+## Online-Prüfung
+
+Die erste Version wurde am 17. November 2026 erfolgreich über GitHub Pages veröffentlicht: https://timguske.github.io/grand-tim-auto/ . Der Pages-Lauf `44110596131` war erfolgreich; die Spielseite liefert HTTP 200. Die veröffentlichte Seite wurde im Browser bei 844×390 mit erzwungener Touch-Oberfläche gestartet: 3D-Szene und Tasten sichtbar, keine Konsolenfehler. Ein echter Handytest steht weiterhin aus.
