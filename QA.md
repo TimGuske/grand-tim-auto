@@ -28,3 +28,12 @@ Die erste Version wurde am 17. November 2026 erfolgreich über GitHub Pages ver�
 - Kein hörender Test auf einem echten Handy; Dialektqualität und echte Mehrfinger-Eingabe weiterhin offen. fal als installiert bestätigt, aber Generierungswerkzeuge im Chat nicht verfügbar; Website benötigt separate Anmeldung.
 
 0.2 wurde über Pages-Lauf `44115347986` erfolgreich veröffentlicht (Deployment-Commit `eac3691`). Die veröffentlichte Spielseite wurde erneut bei 844×390 geöffnet: neue Oberfläche, Start, bestätigtes Sprach-Start-Ereignis und Touch-Stampfer geprüft; keine Konsolenfehler/-warnungen im frischen Tab.
+
+## Sprachupdate 0.2.1
+
+- Neun von Tim bestätigte Sprüche einzeln geschnitten; 18 MP3-Clips, männlich tief / weiblich frecher, beide 12 % schneller. Keine System-TTS mehr. Die Sprechblasen verwenden Tims bestätigte Schreibweise.
+- Stimmzuordnung folgt der tatsächlichen Figurenvariante. Laufende Sätze bleiben vor Unterbrechung durch Treffer geschützt; Pause und Ton aus stoppen auch noch ladende Aufnahmen.
+- Fehler beim ersten Schnitt korrigiert: Ausblendungen wurden vor dem Zurücksetzen der Clip-Zeit angewendet und erzeugten stumme Dateien. Nun wird vor der Tempoverarbeitung geschnitten und die Ausblendung relativ zur endgültigen Clip-Zeit gesetzt.
+- Alle 18 endgültigen MP3s vollständig dekodiert: 0,89–1,94 Sekunden, Signal vorhanden, Spitzen zwischen -2,5 und -7,5 dBFS, kein Clipping; zusammen 408.216 Bytes.
+- Zwölf automatisierte Tests erfolgreich; Produktionsbuild erfolgreich. Lokaler Browserstart zeigt Ton an, Sprachstart und bestätigten Spruch. Hörbarer Test auf echtem Handy weiterhin offen.
+- Zusätzliche echte Browserprüfung: alle 18 Clips nacheinander über `GameAudio` dekodiert und bis zum Ende abgespielt, AudioContext jeweils `running`, dekodierter Spitzenpegel jeweils größer als 0,01. Ergebnis: 18/18 erfolgreich. Diese technische Prüfung ersetzt keinen hörenden Test auf einem echten Handy.

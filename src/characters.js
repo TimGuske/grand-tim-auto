@@ -6,6 +6,7 @@ export function makeCharacter(isTim, coat, { scene, box, ball, cyl, mesh, mat, r
   const skin = isTim ? '#e0aa84' : ['#e8b78b', '#c99170', '#efc5a0'][Math.floor(random()*3)];
   const dark = isTim ? '#18243a' : coat;
   const legs = [], arms = [];
+  let voice = 'male';
   for (const side of [-1, 1]) {
     const leg = new THREE.Group(); leg.position.set(side*.22,.76,0); body.add(leg);
     cyl(leg, '#384047', 0,-.28,0,.14,.12,.64);if(isTim){box(leg,'#c9c9c4',0,-.74,.11,.36,.07,.52);for(let j=0;j<3;j++)box(leg,'#ffffff',0,-.59,.08+j*.07,.21,.025,.025);} ball(leg,isTim?'#f2e9dc':'#273039',0,-.64,.1,.21,.85,.5,1.45); legs.push(leg);
@@ -60,12 +61,13 @@ export function makeCharacter(isTim, coat, { scene, box, ball, cyl, mesh, mat, r
     for(let i=0;i<6;i++)box(scarf,'#a4a197',-.13+i*.05,-.86,0,.018,.13,.06);
   } else {
     const style=Math.floor(random()*4);
+    if(style===1)voice='female';
     const hair=['#73513b','#d6af5d','#c9c2b0','#59453c'][style];
     ball(head,hair,0,.34,-.11,.56,1,.68,.95);
     if(style===1){for(const side of [-1,1]){ball(head,hair,side*.42,-.12,-.12,.27,.8,1.7,1);ball(head,hair,side*.4,-.42,-.2,.22,.8,1.1,1);}for(const side of [-1,1])box(body,'#d6b7a8',side*.29,1.6,.33,.06,.38,.05);}
     else if(random()>.5){cyl(head,coat,0,.38,0,.61,.62,.13,20);ball(head,coat,0,.49,-.05,.48,1,.4,1);}
     else for(const side of [-1,1])ball(head,hair,side*.44,.13,-.1,.2,.55,1.3,1);
-    if(random()>.55)for(const side of [-1,1])ball(head,'#74604e',side*.1,-.18,.47,.13,1,.45,.35);
+    if(style!==1&&random()>.55)for(const side of [-1,1])ball(head,'#74604e',side*.1,-.18,.47,.13,1,.45,.35);
   }
   // Batch each articulated part separately, preserving walking/head/arm animation.
   function batch(group){
@@ -75,5 +77,5 @@ export function makeCharacter(isTim, coat, { scene, box, ball, cyl, mesh, mat, r
   }
   const ink=new THREE.MeshBasicMaterial({color:'#25302f',side:THREE.BackSide});
   body.traverse(part=>{if(!part.isGroup)return;for(const object of [...part.children])if(object.isMesh&&object.geometry.type==='SphereGeometry'&&object.geometry.parameters.radius>.35){const outline=new THREE.Mesh(object.geometry.clone(),ink);outline.position.copy(object.position);outline.rotation.copy(object.rotation);outline.scale.copy(object.scale).multiplyScalar(1.025);part.add(outline);}});
-  batch(body);scene.add(root);return { root,body,legs,arms,head };
+  batch(body);scene.add(root);return { root,body,legs,arms,head,voice };
 }

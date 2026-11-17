@@ -1,70 +1,96 @@
-// One phrase object supplies both the visible subtitle and its optional recorded clip.
+// Each recorded phrase supplies both the visible text and its male/female clip.
 export const PHRASES = [
-  { id: 'heidanei', text: 'Heidanei!' },
-  { id: 'sag-amol', text: 'Ja sag amol!' },
-  { id: 'hanoi', text: 'Hanoi, doch ned so!' },
-  { id: 'gibts-net', text: 'Des gibt’s doch net!' },
-  { id: 'oiner', text: 'Du bisch mir oiner!' },
-  { id: 'sapperlot', text: 'Sapperlot!' },
-  { id: 'brezla', text: 'Mei Brezla! Des koscht extra!' },
-  { id: 'hudla', text: 'No net hudla!' },
-  { id: 'ordnung', text: 'Do war grad no Ordnung!' },
-  { id: 'gruessgott', text: 'Grüß Gott! Auf geht’s!' },
-].map(phrase => ({ ...phrase, id: phrase.id.replaceAll(' ', '') }));
+  { id: 'spruch-01', text: 'Ha sag a mol!' },
+  { id: 'spruch-02', text: 'Du Grasdaggl!' },
+  { id: 'spruch-03', text: 'Asobaba!' },
+  { id: 'spruch-04', text: 'Desch zwenig Mehl!' },
+  { id: 'spruch-05', text: 'Uffs Maul, sag i dir!' },
+  { id: 'spruch-06', text: 'Langsam, Kerle!' },
+  { id: 'spruch-07', text: 'Zeig dir glei, wo der Bartell dr Moschd holt!' },
+  { id: 'spruch-08', text: 'Sag a mol!' },
+  { id: 'spruch-09', text: 'Ha neu!' },
+];
+const base = import.meta.env?.BASE_URL || './';
 
 export class GameAudio {
   constructor(onStatus = () => {}) {
     this.enabled = false; this.context = null; this.current = null; this.speaking = false;
-    this.onStatus = onStatus; this.clips = new Map(); this.voices = [];
-    this.loadVoices = () => { this.voices = window.speechSynthesis?.getVoices() || []; };
-    this.loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', this.loadVoices);
-    // Empty until approved dialect clips exist: never silently substitute unrelated recordings.
-    fetch(`${(import.meta.env?.BASE_URL || './')}audio/manifest.json`).then(r => r.ok ? r.json() : {}).then(manifest => {
-      for (const [id, file] of Object.entries(manifest)) this.clips.set(id, file);
-    }).catch(() => {});
+    this.onStatus = onStatus; this.clips = new Map(); this.buffers = new Map();
+    // Fetch the small clips early. Decode after the first touch creates the audio context.
+    this.ready = fetch(`${base}audio/manifest.json`).then(r => {
+      if (!r.ok) throw new Error('manifest');
+      return r.json();
+    }).then(manifest => {
+      for (const [id, voices] of Object.entries(manifest)) {
+        this.clips.set(id, Object.fromEntries(Object.entries(voices).map(([voice, file]) => {
+          const bytes = fetch(`${base}audio/${file}`).then(r => {
+            if (!r.ok) throw new Error('clip');
+            return r.arrayBuffer();
+          }).catch(() => null);
+          return [voice, bytes];
+        })));
+      }
+    }).catch(() => this.onStatus('Sprachclips nicht geladen · bitte neu laden'));
   }
   unlock() {
     if (!this.enabled) return;
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* Older WebKit keeps its default session. */ }
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* Older WebKit. */ }
     const Context = window.AudioContext || window.webkitAudioContext;
     if (Context) {
       this.context ||= new Context();
       if (this.context.state !== 'running') this.context.resume().catch(() => this.onStatus('Ton blockiert · erneut antippen'));
-      // Prime an actual buffer on the input event, including mobile Safari.
+      // Prime a buffer directly during the touch event, including mobile Safari.
       const source = this.context.createBufferSource(); source.buffer = this.context.createBuffer(1, 1, this.context.sampleRate);
       source.connect(this.context.destination); source.start();
     }
-    window.speechSynthesis?.resume();
   }
   setEnabled(value) { this.enabled = value; if (value) this.unlock(); else this.stop(); }
   stop() {
-    this.current?.pause?.(); this.finish?.(); this.current = null; this.speaking = false;
-    window.speechSynthesis?.cancel();
+    const current = this.current;
+    this.finish?.();
+    current?.stop();
   }
-  speak(phrase, onStart = () => {}, onEnd = () => {}) {
-    if (!this.enabled || this.speaking) return false;
+  speak(phrase, onStart = () => {}, onEnd = () => {}, voice = 'male') {
+    if (!this.enabled || this.speaking || !this.context) return false;
     this.speaking = true;
-    let finished = false, began = false;
-    const watchdog = setTimeout(() => { if (!began) { this.onStatus('Keine Stimme gestartet · Ton erneut antippen'); window.speechSynthesis?.cancel(); } end(); }, 8000);
-    const end = () => { if (finished) return; finished = true; clearTimeout(watchdog); this.current = null; this.speaking = false; this.finish = null; onEnd(); };
+    let finished = false;
+    const end = () => {
+      if (finished) return;
+      finished = true; clearTimeout(watchdog);
+      const current = this.current;
+      this.current = null; this.speaking = false; this.finish = null;
+      current?.disconnect(); onEnd();
+    };
+    const watchdog = setTimeout(() => {
+      if (finished) return;
+      this.onStatus('Ton blockiert · erneut antippen');
+      this.stop();
+    }, 8000);
     this.finish = end;
-    const file = this.clips.get(phrase.id);
-    if (file) {
-      const clip = new Audio(`${(import.meta.env?.BASE_URL || './')}audio/${file}`); this.current = clip;
-      clip.onplaying = () => { began = true; onStart(phrase.text); }; clip.onended = end;
-      clip.onerror = () => { this.onStatus('Sprachclip nicht verfügbar'); end(); };
-      clip.play().catch(() => { this.onStatus('Stimme blockiert · Ton erneut antippen'); end(); });
-    } else if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(phrase.text); this.current = utterance;
-      utterance.lang = 'de-DE'; utterance.rate = 1; utterance.pitch = .95;
-      const voice = this.voices.find(v => v.lang === 'de-DE' && v.localService) || this.voices.find(v => v.lang.startsWith('de'));
-      if (voice) utterance.voice = voice;
-      utterance.onstart = () => { this.onStatus('Browserstimme · Dialektclips folgen'); began = true; onStart(phrase.text); };
-      utterance.onend = end;
-      utterance.onerror = event => { if (!['canceled', 'interrupted'].includes(event.error)) this.onStatus('Stimme nicht verfügbar · Sprüche als Text'); end(); };
-      // Keep the utterance referenced until completion (important on WebKit).
-      window.speechSynthesis.speak(utterance);
-    } else { this.onStatus('Sprüche als Text · keine Systemstimme'); end(); return false; }
+    const play = async () => {
+      await this.ready;
+      if (finished) return;
+      const key = `${phrase.id}:${voice}`;
+      let buffer = this.buffers.get(key);
+      if (!buffer) {
+        const bytes = await this.clips.get(phrase.id)?.[voice];
+        if (finished) return;
+        if (!bytes) throw new Error('clip');
+        buffer = await this.context.decodeAudioData(bytes.slice(0));
+        this.buffers.set(key, buffer);
+      }
+      if (finished || !this.enabled) return;
+      if (this.context.state !== 'running') await this.context.resume();
+      if (finished) return;
+      const source = this.context.createBufferSource(); source.buffer = buffer;
+      source.connect(this.context.destination); source.onended = end; this.current = source;
+      source.start(); onStart(phrase.text);
+      this.onStatus('Schwäbische Comicstimmen');
+    };
+    play().catch(() => {
+      if (finished) return;
+      this.onStatus('Sprachclip nicht verfügbar · bitte neu laden'); end();
+    });
     return true;
   }
   effect(type = 'bump') {

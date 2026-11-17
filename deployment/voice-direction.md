@@ -1,30 +1,27 @@
-# KI-Stimmen: erste schwäbische Stimmprobe
+# Freigegebene schwäbische Comicstimmen
 
-Ziel: fiktive Comic-Nachbarn aus dem Raum Winnenden/Stuttgart. Keine Imitation einer realen Person. Natürliches Schwäbisch ist ein Qualitätsziel, keine bereits bestätigte Modellfähigkeit.
+Tim hat beide Aufnahmen selbst eingesprochen und diese Bearbeitung nach Hörproben freigegeben: Männer tief, Frauen die frechere hohe Comicstimme, beide 12 % schneller. Es wird keine KI-Stimme und keine Browser-TTS benutzt.
 
-Möglicher erster Test: https://fal.ai/models/fal-ai/qwen-3-tts/voice-design/1.7b
+Private Originale und Bearbeitungsskripte liegen lokal im ignorierten `work/voice/`. Nur die zugeschnittenen bearbeiteten Clips werden in `public/audio/` veröffentlicht.
 
-## Stimmregie
+## Sprüche in Aufnahme-Reihenfolge
 
-A native Swabian German man in his late fifties from the Stuttgart / Winnenden region, with a clearly audible authentic Swabian dialect, warm slightly gravelly baritone, expressive and conversational. He is a friendly local market vendor, comically indignant and surprised, never threatening. Natural regional vowels and melodic Swabian intonation, crisp intelligibility, lively comic timing. Speak entirely in German / Swabian. No English accent. Dry studio recording, no background music, no sound effects. Do not narrate the instructions.
+1. Ha sag a mol!
+2. Du Grasdaggl!
+3. Asobaba!
+4. Desch zwenig Mehl!
+5. Uffs Maul, sag i dir!
+6. Langsam, Kerle!
+7. Zeig dir glei, wo der Bartell dr Moschd holt!
+8. Sag a mol!
+9. Ha neu!
 
-## Erste Probe
+Die Schreibweisen stammen von Tim. Die IDs `spruch-01` bis `spruch-09` verbinden genau diese Texte mit jeweils einem männlichen und einem weiblichen Clip in `manifest.json`.
 
-Heidanei! Ja sag amol! Du bisch doch ned ganz dicht! I glaub, es hackt! No net hudla!
+## Bearbeitung
 
-Vor Einbau anhören und Schwäbisch durch Tim beurteilen lassen. Anschließend pro Zeile einen kurzen Clip erzeugen, ohne Musik und mit kurzer Stille an Anfang/Ende. Variante 2: ältere Marktfrau mit hellem, energischem Ton; Variante 3: jüngerer Passant, trocken und erstaunt.
-
-## Im Spiel vorhandene Zeilen / IDs
-
-- heidanei — Heidanei!
-- sag-amol — Ja sag amol!
-- hanoi — Hanoi, doch ned so!
-- gibts-net — Des gibt’s doch net!
-- oiner — Du bisch mir oiner!
-- sapperlot — Sapperlot!
-- brezla — Mei Brezla! Des koscht extra!
-- hudla — No net hudla!
-- ordnung — Do war grad no Ordnung!
-- gruessgott — Grüß Gott! Auf geht’s!
-
-Clips in `public/audio/` speichern; `manifest.json` ordnet dieselben IDs zu. Diese Dateien werden statisch mit GitHub Pages ausgeliefert. API-Zugänge gehören nicht in die Web-App. Vorläufig bleiben deutsche Systemstimmen als Ersatz aktiv.
+- Mann: Tonhöhenfaktor 0,86, leichte Bassanhebung.
+- Frau: Tonhöhenfaktor 1,43, dezentes Vibrato (6,5 Hz, Tiefe 0,18) und Höhenanhebung.
+- Gegenläufige Tempokorrektur erhält zunächst das Sprachtempo; abschließend Tempo 1,12 bei gleicher Tonhöhe.
+- Hochpass, sanfte Kompression, Lautheitsangleichung, kurze Ein-/Ausblendungen gegen Schnittknackser.
+- Ausgabe: MP3 mono, 48 kHz, 128 kbit/s. Keine API-Zugänge im Spiel.

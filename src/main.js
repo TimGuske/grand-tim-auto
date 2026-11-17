@@ -213,13 +213,13 @@ function setPause(value){paused=value;resetInput();$('pause-overlay').hidden=!va
 function updateSoundButton(){$('sound').textContent=audio.enabled?'TON AN':'TON AUS';$('sound').setAttribute('aria-pressed',String(audio.enabled));}
 function start(){
  const first=!started;started=true;setPause(false);$('intro').hidden=true;$('start').blur();
- if(first){audio.setEnabled($('start-sound').checked);updateSoundButton();if(audio.enabled){audio.effect();feedback(tim,PHRASES.at(-1));}}
+ if(first){audio.setEnabled($('start-sound').checked);updateSoundButton();if(audio.enabled){audio.effect();feedback(tim,PHRASES[0]);}}
  else audio.unlock();
 }
 $('start').onclick=start;$('resume').onclick=()=>{setPause(false);audio.unlock();};$('pause').onclick=()=>started&&setPause(!paused);
 $('help').onclick=()=>{setPause(true);$('pause-overlay').hidden=true;$('intro').hidden=false;$('start').textContent='WEITER GEHT’S ↗';};
 $('portrait-continue').onclick=()=>$('rotate').classList.add('dismissed');
-$('sound').onclick=()=>{audio.setEnabled(!audio.enabled);updateSoundButton();if(audio.enabled){audio.effect('bump');feedback(tim,PHRASES.at(-1));}else $('audio-status').textContent='Ton aus';};
+$('sound').onclick=()=>{audio.setEnabled(!audio.enabled);updateSoundButton();if(audio.enabled){audio.effect('bump');feedback(tim,PHRASES[0]);}else $('audio-status').textContent='Ton aus';};
 function speechBubble(npc,text){
  for(let i=bubbles.length-1;i>=0;i--)if(bubbles[i].npc===npc){bubbles[i].el.remove();bubbles.splice(i,1);}
  const el=document.createElement('div');el.className='bubble';el.textContent=text;$('bubbles').appendChild(el);
@@ -229,7 +229,7 @@ function feedback(npc,phrase){
  // A single speaking character at a time. The exact phrase object drives text AND audio.
  if(audio.enabled&&audio.speaking)return;
  const bubble=speechBubble(npc,phrase.text);
- if(audio.enabled){bubble.pinned=true;const accepted=audio.speak(phrase,()=>{bubble.life=2.8;},()=>{bubble.pinned=false;bubble.life=1.1;});if(!accepted)bubble.pinned=false;}
+ if(audio.enabled){bubble.pinned=true;const accepted=audio.speak(phrase,()=>{bubble.life=2.8;},()=>{bubble.pinned=false;bubble.life=.45;},npc.voice);if(!accepted)bubble.pinned=false;}
 }
 function popEffect(x,z,type='bump'){
  const g=new THREE.Group();g.position.set(x,type==='stomp'?.12:1.5,z);scene.add(g);
@@ -258,7 +258,7 @@ function impact(radius,strength,variant,title){
  for(const prop of props.items)if(Math.hypot(prop.x-tim.root.position.x,prop.z-tim.root.position.z)<radius&&props.hit(prop,tim.root.position,strength)){
   points+=award(10);popEffect(prop.x,prop.z);audio.effect('wood');
  }
- if(points){showScore(points,title);feedback(firstNPC||tim,PHRASES[Math.floor(random()*(PHRASES.length-1))]);}
+ if(points){showScore(points,title);feedback(firstNPC||tim,PHRASES[Math.floor(random()*PHRASES.length)]);}
  else if(variant!==1)popEffect(tim.root.position.x+Math.sin(tim.root.rotation.y),tim.root.position.z+Math.cos(tim.root.rotation.y));
  audio.effect(variant===1?'stomp':'bump');
 }

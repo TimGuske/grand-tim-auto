@@ -1,25 +1,65 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
 import { GameAudio, PHRASES } from './audio.js';
-function environment(){
- const utterances=[];const synth={getVoices:()=>[{lang:'de-DE',localService:true,name:'German'}],addEventListener:()=>{},resume:()=>{},cancel:()=>{},speak:u=>utterances.push(u)};
- globalThis.window={speechSynthesis:synth};globalThis.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
- globalThis.fetch=async()=>({ok:true,json:async()=>({})});return {synth,utterances};
+
+const settle = async () => { for(let i=0;i<20;i++)await Promise.resolve(); };
+function environment({ delayed=false }={}) {
+ const sources=[], requests=[];
+ let release;
+ const manifest=Object.fromEntries(PHRASES.map(p=>[p.id,{male:`${p.id}-male.mp3`,female:`${p.id}-female.mp3`} ]));
+ const gate=delayed?new Promise(resolve=>release=resolve):Promise.resolve();
+ globalThis.fetch=async url=>{
+  requests.push(url);
+  if(url.endsWith('manifest.json')){await gate;return {ok:true,json:async()=>manifest};}
+  return {ok:true,arrayBuffer:async()=>new ArrayBuffer(4)};
+ };
+ const context={state:'running',decodeAudioData:async()=>({duration:1}),createBufferSource:()=>{
+  const source={connect(){},disconnect(){},start(){this.started=true;},stop(){this.stopped=true;this.onended?.();}};
+  sources.push(source);return source;
+ }};
+ globalThis.window={speechSynthesis:{speak(){assert.fail('Browser speech must never replace approved clips');}}};
+ const audio=new GameAudio();audio.enabled=true;audio.context=context;
+ return {audio,sources,requests,release};
 }
-test('one exact phrase supplies speech, and overlapping reactions do not replace it',()=>{
- const {utterances}=environment(),audio=new GameAudio();audio.enabled=true;let visible;
- assert.equal(audio.speak(PHRASES[2],text=>visible=text),true);utterances[0].onstart();
- assert.equal(visible,PHRASES[2].text);assert.equal(utterances[0].text,visible);
- assert.equal(audio.speak(PHRASES[3]),false);assert.equal(utterances.length,1);
- utterances[0].onend();assert.equal(audio.speaking,false);
+
+test('recorded male/female clip follows its speaker and the exact bubble text',async()=>{
+ const {audio,sources}=environment();let visible;
+ assert.equal(audio.speak(PHRASES[1],text=>visible=text,()=>{},'female'),true);
+ assert.equal(audio.speak(PHRASES[0]),false);
+ await settle();
+ assert.equal(visible,PHRASES[1].text);assert.equal(sources.length,1);assert.equal(sources[0].started,true);
+ assert.equal(audio.buffers.has(`${PHRASES[1].id}:female`),true);
+ sources[0].onended();assert.equal(audio.speaking,false);
+ audio.speak(PHRASES[1]);await settle();
+ assert.equal(audio.buffers.has(`${PHRASES[1].id}:male`),true);audio.stop();
 });
-test('pause cancels the current phrase and its old callback cannot cancel a later phrase',()=>{
- const {utterances}=environment(),audio=new GameAudio();audio.enabled=true;let ended=0;
- audio.speak(PHRASES[0],()=>{},()=>ended++);audio.stop();assert.equal(ended,1);
- audio.speak(PHRASES[1]);utterances[0].onend();assert.equal(audio.speaking,true);
- utterances[1].onend();assert.equal(audio.speaking,false);
+
+test('pause stops playback and a stale callback cannot end a newer line',async()=>{
+ const {audio,sources}=environment();let ended=0;
+ audio.speak(PHRASES[0],()=>{},()=>ended++);await settle();
+ audio.stop();assert.equal(ended,1);assert.equal(sources[0].stopped,true);
+ audio.speak(PHRASES[1]);await settle();sources[0].onended();
+ assert.equal(audio.speaking,true);sources[1].onended();assert.equal(audio.speaking,false);
 });
-test('no speech service falls back cleanly without locking further reactions',()=>{
- environment();delete window.speechSynthesis;const audio=new GameAudio();audio.enabled=true;
- assert.equal(audio.speak(PHRASES[0]),false);assert.equal(audio.speaking,false);
+
+test('stopping while clips load prevents delayed unwanted speech',async()=>{
+ const {audio,sources,release}=environment({delayed:true});
+ audio.speak(PHRASES[0]);audio.stop();release();await settle();
+ assert.equal(sources.length,0);assert.equal(audio.speaking,false);
+});
+
+test('missing clip uses text with no computer voice and releases the speech lock',async()=>{
+ const {audio,sources}=environment();
+ audio.speak({id:'missing',text:'Text'});await settle();
+ assert.equal(sources.length,0);assert.equal(audio.speaking,false);
+});
+
+test('every playable phrase ships both approved voice files',()=>{
+ const manifest=JSON.parse(readFileSync(new URL('../public/audio/manifest.json',import.meta.url)));
+ assert.equal(Object.keys(manifest).length,PHRASES.length);
+ for(const phrase of PHRASES)for(const voice of ['male','female']){
+  const file=manifest[phrase.id][voice];assert.equal(typeof file,'string');
+  assert.equal(existsSync(new URL(`../public/audio/${file}`,import.meta.url)),true);
+ }
 });
