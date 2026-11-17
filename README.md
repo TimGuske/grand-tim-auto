@@ -31,7 +31,7 @@ npm run preview
 - Mit Ton starten: geschnittene schwäbische Aufnahmen, tiefe Männerstimme und frechere Frauenstimme. Keine System-Sprachausgabe.
 - Vollbild: Fullscreen-API; auf iPhone alternativ über „Zum Home-Bildschirm“ öffnen.
 
-12 Passanten verwenden zwei Cartoon-Modelle von Canino3d mit Kleidungsfarbvarianten
+Sechs Fußgänger und drei stehende Gesprächspaare verwenden zwei Cartoon-Modelle von Canino3d mit Kleidungsfarbvarianten
 und individueller Gehphase. Download und Lizenz: [CREDITS.md](CREDITS.md); die
 Credits sind auch im Startbildschirm verlinkt. 16 umwerfbare Marktgegenstände,
 Comic-Knockback und Kettenreaktionen bleiben enthalten. Punkte und Energie leben

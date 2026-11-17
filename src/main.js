@@ -4,6 +4,7 @@ import { makeCharacter } from './characters.js';
 import { loadTim, poseTimArms } from './tim-model.js';
 import { extendRig, poseBoxing, PLAYBACK_SPEED } from './boxing-motion.js';
 import { SPRITZ_STAND, drainEnergy, energySpeed, canRefill } from './energy.js';
+import { crowdPlan, stepCrowd } from './crowd.js';
 import { loadPerson } from './people.js';
 import { PUNCH_DURATION, PUNCH_CONTACT, inPunchReach } from './combat.js';
 import { createProps } from './props.js';
@@ -225,8 +226,9 @@ loadTim().then(extendRig).then(avatar=>{
 });
 const npcColors=['#ba6447','#648b7c','#d6ac4a','#8b839f','#a88569','#697d96'];
 const npcs=Array.from({length:12},(_,i)=>{
- const avatar=character(false,npcColors[i%6]);const x=-8+(i%4)*5,z=-13+Math.floor(i/4)*10;
- avatar.root.position.set(x,0,z);return {...avatar,x,z,homeX:x,homeZ:z,air:0,vy:0,vx:0,vz:0,cooldown:0,phase:random()*6,heading:random()*6};
+ const avatar=character(false,npcColors[i%6]),plan=crowdPlan(i);
+ avatar.root.position.set(plan.x,0,plan.z);avatar.root.rotation.y=plan.heading;
+ return {...avatar,...plan,air:0,vy:0,vx:0,vz:0,cooldown:0,phase:random()*6,walking:plan.behavior==='walk'};
 });
 // Replace each placeholder in place so active dialogue and physics retain their target.
 for(let i=0;i<npcs.length;i++)loadPerson(i).then(avatar=>{
@@ -403,11 +405,10 @@ function animate(){
    }else{
     n.recovery=Math.max(0,(n.recovery||0)-dt);n.body.scale.y=n.recovery>0?1-Math.sin(n.recovery/.45*Math.PI)*.24:1;
     if(!n.animate){n.arms[0].rotation.z=0;n.arms[1].rotation.z=0;}
-    n.heading+=Math.sin(elapsed*.5+n.phase)*dt*.45;const nx=Math.sin(n.heading)*.65*dt,nz=Math.cos(n.heading)*.65*dt;
-    const pos=moveWithinWorld(n,nx,nz);if(Math.abs(pos.x-n.x)<Math.abs(nx)*.2||Math.abs(pos.z-n.z)<Math.abs(nz)*.2)n.heading+=1.5;
-    n.x=pos.x;n.z=pos.z;n.root.rotation.y=n.heading;if(!n.animate){n.legs[0].rotation.x=Math.sin(elapsed*4+n.phase)*.25;n.legs[1].rotation.x=-n.legs[0].rotation.x;}
+    n.walking=stepCrowd(n,dt,elapsed);n.root.rotation.y=n.heading;
+    if(!n.animate){const stride=n.walking?Math.sin(elapsed*4+n.phase)*.3:0;n.legs[0].rotation.x=stride;n.legs[1].rotation.x=-stride;}
    }
-   n.animate?.(dt,n.air>0,n.recovery>0);
+   n.animate?.(dt,n.air>0,n.recovery>0,n.walking?'walk':'chat',n.walkSpeed);
    n.root.position.set(n.x,n.air,n.z);
   }
   props.update(dt,handleChains);

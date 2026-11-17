@@ -69,3 +69,10 @@ Die erste Version wurde am 17. November 2026 erfolgreich über GitHub Pages ver�
 - Neonorange Aperol-Energie: 200 s aktive Zeit bis leer, Pause stoppt Verbrauch, unter 25 % reduziertes Tempo mit erreichbarem Stand. Auffüllen nur nahe dem sichtbaren Stand, per F oder Touch. Orange Markierung auf der Karte.
 
 - 22 automatisierte Tests erfolgreich. Produktionsbuild erfolgreich. Browserprüfung: beide neuen Passantenmodelle sichtbar, keine Konsolenfehler/-warnungen; Lauf zum Spritz-Stand, eingeblendeter Nachfüllbutton, Energieanstieg auf 100 % und Bestätigung überprüft. Querformat 844 × 390: Logo, neonorange Energie, Score und Touch-Aktionen ohne Überlappung. Echter Handy-Leistungs- und Multitouch-Test bleibt bei Tim.
+
+## 0.3.1 – Lebendigerer Marktplatz
+
+- Sechs Fußgänger laufen mit 1,1–1,42 statt 0,65 Spielmetern pro Sekunde; Gehbewegung entsprechend beschleunigt.
+- Drei stehende Zweiergruppen an Marktstand, Spritz-Stand und Café. Arme gestikulieren, Kopf und Oberkörper bewegen sich dezent. Keine neuen Sprachaufnahmen oder zusätzlichen Gesprächssprechblasen.
+- Nach Comic-Knockback kehren Gesprächspartner zu ihren Plätzen zurück. Erholung und Flug unterbrechen die Unterhaltung.
+- 23 Tests und Produktionsbuild erfolgreich; Rückkehr ohne Teleport und stehende Gruppen geprüft. Browser: neue Gruppen und Bewegung sichtbar, keine Konsolenfehler/-warnungen.
