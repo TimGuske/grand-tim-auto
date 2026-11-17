@@ -83,4 +83,3 @@ $('rotate').onclick=()=>{controls.autoRotate=!controls.autoRotate;$('rotate').se
 function resize(){const {width,height}=$('view').getBoundingClientRect();camera.aspect=width/height;camera.updateProjectionMatrix();renderer.setSize(width,height);}
 window.addEventListener('resize',resize);resize();
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();
-
