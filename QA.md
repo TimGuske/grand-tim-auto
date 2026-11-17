@@ -37,3 +37,4 @@ Die erste Version wurde am 17. November 2026 erfolgreich über GitHub Pages ver�
 - Alle 18 endgültigen MP3s vollständig dekodiert: 0,89–1,94 Sekunden, Signal vorhanden, Spitzen zwischen -2,5 und -7,5 dBFS, kein Clipping; zusammen 408.216 Bytes.
 - Zwölf automatisierte Tests erfolgreich; Produktionsbuild erfolgreich. Lokaler Browserstart zeigt Ton an, Sprachstart und bestätigten Spruch. Hörbarer Test auf echtem Handy weiterhin offen.
 - Zusätzliche echte Browserprüfung: alle 18 Clips nacheinander über `GameAudio` dekodiert und bis zum Ende abgespielt, AudioContext jeweils `running`, dekodierter Spitzenpegel jeweils größer als 0,01. Ergebnis: 18/18 erfolgreich. Diese technische Prüfung ersetzt keinen hörenden Test auf einem echten Handy.
+- 0.2.1 veröffentlicht über Pages-Lauf `44128822488` (Deployment `9921e6b`). Online: korrekter JS-Build und alle 18 MP3s mit identischem SHA-256 geprüft; Spielstart zeigt `Schwäbische Comicstimmen` und `Ha sag a mol!`.
