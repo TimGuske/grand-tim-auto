@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import './style.css';
 import { makeCharacter } from './characters.js';
+import { loadTim, poseTimArms } from './tim-model.js';
+import { extendRig, poseBoxing, PLAYBACK_SPEED } from './boxing-motion.js';
+import { SPRITZ_STAND, drainEnergy, energySpeed, canRefill } from './energy.js';
+import { loadPerson } from './people.js';
+import { PUNCH_DURATION, PUNCH_CONTACT, inPunchReach } from './combat.js';
 import { createProps } from './props.js';
 import { GameAudio, PHRASES } from './audio.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -174,6 +179,17 @@ for(const z of [-1,10]){
  const canopy=cyl(scene,'#f1dfba',9,4.3,z,.08,1.9,.65,8);canopy.rotation.y=Math.PI/8;
  for(let i=0;i<8;i++){const a=i*Math.PI/4;const rib=box(scene,'#d6c099',9+Math.sin(a)*.9,4.25,z+Math.cos(a)*.9,.035,.035,1.95);rib.rotation.y=a;rib.rotation.x=.18;}
 }
+// Orange Spritz stand: a visible destination for the energy mechanic.
+const spritz=new THREE.Group();spritz.position.set(SPRITZ_STAND.x,0,SPRITZ_STAND.z);scene.add(spritz);
+box(spritz,'#ff6019',0,.65,0,3.1,1.3,1.2);box(spritz,'#fff4dc',0,1.34,0,3.3,.14,1.4);
+for(const x of [-1.45,1.45])cyl(spritz,'#efe3c6',x,2.0,-.4,.045,.045,2.5);
+box(spritz,'#ff6c16',0,3.16,0,3.7,.18,2.0);
+sign(spritz,'APEROL SPRITZ',0,2.83,.65,3.2);sign(spritz,'NACHTANKEN',0,.78,.615,2.5);
+for(const x of [-.9,-.3,.3,.9]){
+ cyl(spritz,'#fff6de',x,1.43,0,.09,.09,.025);cyl(spritz,'#fff6de',x,1.55,0,.02,.02,.23);
+ cyl(spritz,'#ff791c',x,1.76,0,.13,.07,.25);const orange=cyl(spritz,'#ffb230',x+.1,1.88,0,.10,.10,.035);orange.rotation.x=Math.PI/2;
+}
+
 // Merge the static town by material: mobile GPUs draw dozens of batches instead of thousands.
 scene.updateMatrixWorld(true);
 const batches = new Map();
@@ -196,14 +212,31 @@ for (const { material, objects } of batches.values()) {
 const helpers={scene,box,ball,cyl,mesh,mat,sign,random};
 const character=(isTim,coat='#bb7855')=>makeCharacter(isTim,coat,helpers);
 const props=createProps(helpers);
-const tim=character(true);tim.root.position.set(0,0,7);
+let tim=character(true);tim.root.position.set(0,0,7);
+// Keep the game responsive while the detailed model is transferred and decoded.
+loadTim().then(extendRig).then(avatar=>{
+ avatar.root.position.copy(tim.root.position);avatar.root.quaternion.copy(tim.root.quaternion);
+ for(const bubble of bubbles)if(bubble.npc===tim)bubble.npc=avatar;
+ scene.remove(tim.root);tim.root.traverse(o=>o.geometry?.dispose());scene.add(avatar.root);tim=avatar;
+ $('figure-status').textContent='Tim ist bereit.';
+}).catch(error=>{
+ console.warn('Tim model unavailable',error);
+ $('figure-status').textContent='Einfache Figur aktiv · für den neuen Tim bitte neu laden.';
+});
 const npcColors=['#ba6447','#648b7c','#d6ac4a','#8b839f','#a88569','#697d96'];
 const npcs=Array.from({length:12},(_,i)=>{
  const avatar=character(false,npcColors[i%6]);const x=-8+(i%4)*5,z=-13+Math.floor(i/4)*10;
  avatar.root.position.set(x,0,z);return {...avatar,x,z,homeX:x,homeZ:z,air:0,vy:0,vx:0,vz:0,cooldown:0,phase:random()*6,heading:random()*6};
 });
-let started=false,paused=false,score=0,combo=0,lastHit=-10,bumpCooldown=0,bumpAnim=0,elapsed=0;
-let stompCooldown=0,jump=0,jumpVelocity=0,landingPending=false,actionVariant=0,toastTime=0;
+// Replace each placeholder in place so active dialogue and physics retain their target.
+for(let i=0;i<npcs.length;i++)loadPerson(i).then(avatar=>{
+ const npc=npcs[i];avatar.root.position.copy(npc.root.position);avatar.root.quaternion.copy(npc.root.quaternion);
+ avatar.body.rotation.copy(npc.body.rotation);scene.remove(npc.root);npc.root.traverse(o=>o.geometry?.dispose());
+ delete npc.legs;delete npc.arms;delete npc.head;scene.add(avatar.root);Object.assign(npc,avatar);
+}).catch(error=>console.warn('Passant konnte nicht geladen werden',error));
+let energy=100,refillCooldown=0,walkPhase=0;
+let started=false,paused=false,score=0,combo=0,lastHit=-10,punchCooldown=0,punchAnim=0,elapsed=0;
+let stompCooldown=0,jump=0,jumpVelocity=0,landingPending=false,punchPending=false,toastTime=0;
 const keys=new Set();let joystick={x:0,y:0},yaw=0,pitch=.24,drag=null;
 const bubbles=[],effects=[];
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -250,25 +283,36 @@ function launchNPC(npc,origin,strength=1,variant=0){
  npc.vy=[7.2,10.8,5.8][variant]*strength;npc.air=.01;npc.cooldown=3;
  npc.reaction=variant;npc.spin=(random()>.5?1:-1)*(variant===1?11:5);npc.recovery=.35;
 }
-function impact(radius,strength,variant,title){
+function impact(radius,strength,variant,title,forwardOnly=false){
  let points=0,firstNPC=null;
- for(const npc of npcs)if(canBump(tim.root.position,npc,radius)){
+ for(const npc of npcs)if(canBump(tim.root.position,npc,radius)&&(!forwardOnly||inPunchReach(tim.root.position,tim.root.rotation.y,npc,radius))){
   launchNPC(npc,tim.root.position,strength,variant);points+=award(25);popEffect(npc.x,npc.z);firstNPC??=npc;
  }
- for(const prop of props.items)if(Math.hypot(prop.x-tim.root.position.x,prop.z-tim.root.position.z)<radius&&props.hit(prop,tim.root.position,strength)){
+ for(const prop of props.items)if(Math.hypot(prop.x-tim.root.position.x,prop.z-tim.root.position.z)<radius&&(!forwardOnly||inPunchReach(tim.root.position,tim.root.rotation.y,prop,radius))&&props.hit(prop,tim.root.position,strength)){
   points+=award(10);popEffect(prop.x,prop.z);audio.effect('wood');
  }
  if(points){showScore(points,title);feedback(firstNPC||tim,PHRASES[Math.floor(random()*PHRASES.length)]);}
- else if(variant!==1)popEffect(tim.root.position.x+Math.sin(tim.root.rotation.y),tim.root.position.z+Math.cos(tim.root.rotation.y));
+ else if(!forwardOnly&&variant!==1)popEffect(tim.root.position.x+Math.sin(tim.root.rotation.y),tim.root.position.z+Math.cos(tim.root.rotation.y));
  audio.effect(variant===1?'stomp':'bump');
 }
-function bump(){
- audio.unlock();if(!started||paused||bumpCooldown>0||jump>0)return;
- bumpCooldown=.48;bumpAnim=.38;actionVariant=(actionVariant+1)%3;
- impact(2.8,1,actionVariant,['SCHUBS!','HOPPSALA!','DREH DURCH!'][actionVariant]);
+function refill(){
+ if(!started||paused||jump>0||punchAnim>0||refillCooldown>0||!canRefill(tim.root.position))return;
+ audio.unlock();energy=100;refillCooldown=1.5;audio.effect('wood');
+ $('toast').textContent='HA, JETZT LÄUFT’S! + ENERGIE';$('toast').classList.add('visible');toastTime=2;
+}
+function updateEnergy(){
+ const value=Math.ceil(energy),near=canRefill(tim.root.position);
+ $('energy-value').textContent=`${value}%`;$('energy-fill').style.width=`${energy}%`;
+ $('energy-meter').setAttribute('aria-valuenow',String(value));$('energy-card').classList.toggle('low',energy<25);
+ $('energy-hint').textContent=near?'Spritz-Stand erreicht · F oder Tippen':energy<25?'Zeit für a Spritz! Orange Markierung auf der Karte.':'Nachtanken am orangefarbenen Spritz-Stand';
+ $('refill').hidden=!near||!started||paused;$('refill').disabled=energy>=99||refillCooldown>0||jump>0||punchAnim>0;
+}
+function punch(){
+ audio.unlock();if(!started||paused||punchCooldown>0||jump>0)return;
+ punchCooldown=PUNCH_DURATION+.06;punchAnim=PUNCH_DURATION;punchPending=true;
 }
 function stomp(){
- audio.unlock();if(!started||paused||stompCooldown>0||jump>0)return;
+ audio.unlock();if(!started||paused||stompCooldown>0||jump>0||punchAnim>0)return;
  stompCooldown=2.4;jump=.01;jumpVelocity=6.2;landingPending=true;
 }
 function handleChains(projectile){
@@ -282,7 +326,7 @@ function handleChains(projectile){
 window.addEventListener('keydown',e=>{
  if(['Space','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
  if(e.code==='Escape'&&started){setPause(!paused);return;}keys.add(e.code);
- if(e.code==='Space'&&!e.repeat)bump();if(e.code==='KeyE'&&!e.repeat)stomp();
+ if(e.code==='KeyF'&&!e.repeat)refill();if(e.code==='Space'&&!e.repeat)punch();if(e.code==='KeyE'&&!e.repeat)stomp();
 });
 window.addEventListener('keyup',e=>keys.delete(e.code));
 window.addEventListener('blur',()=>{if(started)setPause(true);else resetInput();});
@@ -295,7 +339,7 @@ function updateStick(e){const r=$('stick').getBoundingClientRect();let x=(e.clie
 $('stick').onpointerdown=e=>{audio.unlock();stickPointer=e.pointerId;$('stick').setPointerCapture(e.pointerId);updateStick(e);};
 $('stick').onpointermove=e=>{if(stickPointer===e.pointerId)updateStick(e);};
 for(const event of ['pointerup','pointercancel','lostpointercapture'])$('stick').addEventListener(event,()=>{stickPointer=null;joystick={x:0,y:0};$('stick-knob').style.transform='';});
-$('bump').onclick=bump;$('stomp').onclick=stomp;
+$('refill').onclick=refill;$('punch').onclick=punch;$('stomp').onclick=stomp;
 $('fullscreen').onclick=()=>{
  if(document.fullscreenElement)document.exitFullscreen?.();
  else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{$('audio-status').textContent='Vollbild hier nicht verfügbar';});
@@ -311,53 +355,66 @@ function drawMap(){
  map.fillStyle='#80a7a1';map.beginPath();map.arc(80+FOUNTAIN.x*3,69+FOUNTAIN.z*2.6,7,0,Math.PI*2);map.fill();
  for(const p of props.items){map.fillStyle=p.down?'#f2d482':'#ba8c54';map.fillRect(79+p.x*3,68+p.z*2.6,3,3);}
  for(const n of npcs){map.fillStyle=n.air>0?'#e7653d':'#88947c';map.beginPath();map.arc(80+n.x*3,69+n.z*2.6,2.2,0,Math.PI*2);map.fill();}
+ map.fillStyle='#ff6814';map.fillRect(76+SPRITZ_STAND.x*3,65+SPRITZ_STAND.z*2.6,8,8);map.strokeStyle='#fff';map.strokeRect(76+SPRITZ_STAND.x*3,65+SPRITZ_STAND.z*2.6,8,8);
  map.fillStyle='#e46034';map.beginPath();map.arc(80+tim.root.position.x*3,69+tim.root.position.z*2.6,4,0,Math.PI*2);map.fill();map.strokeStyle='#fff8df';map.lineWidth=2;map.stroke();
 }
 const timer=new THREE.Clock();
 function animate(){
  requestAnimationFrame(animate);const dt=Math.min(timer.getDelta(),.04);const active=started&&!paused;
  if(active){
-  elapsed+=dt;bumpCooldown=Math.max(0,bumpCooldown-dt);bumpAnim=Math.max(0,bumpAnim-dt);stompCooldown=Math.max(0,stompCooldown-dt);
-  $('stomp').disabled=stompCooldown>0;$('stomp').style.setProperty('--ready',`${(1-stompCooldown/2.4)*100}%`);
+  energy=drainEnergy(energy,dt);refillCooldown=Math.max(0,refillCooldown-dt);
+  elapsed+=dt;punchCooldown=Math.max(0,punchCooldown-dt);punchAnim=Math.max(0,punchAnim-dt);
+  if(punchPending&&punchAnim<=PUNCH_DURATION-PUNCH_CONTACT){punchPending=false;impact(2.0,1,0,'POW! FAUSTSCHLAG',true);}
+  stompCooldown=Math.max(0,stompCooldown-dt);
+  $('punch').disabled=punchCooldown>0||jump>0;$('stomp').disabled=stompCooldown>0||punchAnim>0;$('stomp').style.setProperty('--ready',`${(1-stompCooldown/2.4)*100}%`);
   toastTime-=dt;if(toastTime<=0)$('toast').classList.remove('visible');
   let ix=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joystick.x;
   let iz=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+joystick.y;
   const inputLength=Math.hypot(ix,iz);if(inputLength>1){ix/=inputLength;iz/=inputLength;}
-  const speed=6.1;
+  const speed=punchAnim>0?1.2:energySpeed(energy);
   const dx=(ix*Math.cos(yaw)+iz*Math.sin(yaw))*speed*dt,dz=(-ix*Math.sin(yaw)+iz*Math.cos(yaw))*speed*dt;
   const next=moveWithinWorld(tim.root.position,dx,dz);tim.root.position.x=next.x;tim.root.position.z=next.z;
-  if(inputLength>.05){const angle=Math.atan2(dx,dz);tim.root.rotation.y+=Math.atan2(Math.sin(angle-tim.root.rotation.y),Math.cos(angle-tim.root.rotation.y))*Math.min(1,dt*14);}
+  if(inputLength>.05&&punchAnim<=0){const angle=Math.atan2(dx,dz);tim.root.rotation.y+=Math.atan2(Math.sin(angle-tim.root.rotation.y),Math.cos(angle-tim.root.rotation.y))*Math.min(1,dt*14);}
   if(jump>0){jumpVelocity-=19*dt;jump+=jumpVelocity*dt;if(jump<=0){jump=0;if(landingPending){landingPending=false;impact(4.6,1.1,1,'MARKTPLATZ-BEBEN!');popEffect(tim.root.position.x,tim.root.position.z,'stomp');}}}
   tim.root.position.y=jump;
-  const stride=inputLength>.05?Math.sin(elapsed*speed*2.5)*.6:0;
+  const moving=inputLength>.05;
+  if(moving)walkPhase+=dt*speed*1.9;
+  const phase=walkPhase;
+  const stride=moving?Math.sin(phase)*(tim.detailed?.42:.6):0;
+  if(tim.box)poseBoxing(tim,0);
   tim.legs[0].rotation.x=stride;tim.legs[1].rotation.x=-stride;
-  tim.arms[0].rotation.x=-stride;tim.arms[1].rotation.x=bumpAnim>0?-1.4:stride;
-  tim.arms[0].rotation.z=jump>0?.85:0;tim.arms[1].rotation.z=jump>0?-.85:0;
+  poseTimArms(tim,stride,punchAnim,jump);
+  if(tim.knees){tim.knees[0].rotation.x=moving?Math.max(0,-Math.sin(phase))*.55:0;tim.knees[1].rotation.x=moving?Math.max(0,Math.sin(phase))*.55:0;}
   tim.body.position.y=reducedMotion?0:Math.abs(stride)*.07;
-  tim.body.rotation.z=bumpAnim>0?Math.sin(bumpAnim*12)*.16:Math.sin(elapsed*2)*.012;
-  tim.body.rotation.y=bumpAnim>0&&actionVariant===2?(1-bumpAnim/.38)*Math.PI*2:0;
+  tim.body.rotation.z=Math.sin(elapsed*2)*.012;
+  tim.body.rotation.y=0;
   tim.head.rotation.y=Math.sin(elapsed*.6)*.035;
+  if(tim.box&&punchAnim>0){
+   tim.body.position.y=0;tim.body.rotation.set(0,0,0);
+   poseBoxing(tim,(PUNCH_DURATION-punchAnim)*PLAYBACK_SPEED);
+  }
   for(const n of npcs){
    n.cooldown=Math.max(0,n.cooldown-dt);
    if(n.air>0){
     n.vy-=20*dt;n.air+=n.vy*dt;const pos=moveWithinWorld(n,n.vx*dt,n.vz*dt);n.x=pos.x;n.z=pos.z;
     if(!reducedMotion){if(n.reaction===1)n.body.rotation.y+=dt*n.spin;else{n.body.rotation.z+=dt*n.spin;n.body.rotation.x+=dt*(n.reaction===2?7:2);}}
-    n.arms[0].rotation.z=.9;n.arms[1].rotation.z=-.9;
+    if(!n.animate){n.arms[0].rotation.z=.9;n.arms[1].rotation.z=-.9;}
     if(n.air<=0){n.air=0;n.body.rotation.set(0,0,0);n.vx=0;n.vz=0;n.recovery=.45;popEffect(n.x,n.z,'stomp');}
    }else{
     n.recovery=Math.max(0,(n.recovery||0)-dt);n.body.scale.y=n.recovery>0?1-Math.sin(n.recovery/.45*Math.PI)*.24:1;
-    n.arms[0].rotation.z=0;n.arms[1].rotation.z=0;
+    if(!n.animate){n.arms[0].rotation.z=0;n.arms[1].rotation.z=0;}
     n.heading+=Math.sin(elapsed*.5+n.phase)*dt*.45;const nx=Math.sin(n.heading)*.65*dt,nz=Math.cos(n.heading)*.65*dt;
     const pos=moveWithinWorld(n,nx,nz);if(Math.abs(pos.x-n.x)<Math.abs(nx)*.2||Math.abs(pos.z-n.z)<Math.abs(nz)*.2)n.heading+=1.5;
-    n.x=pos.x;n.z=pos.z;n.root.rotation.y=n.heading;n.legs[0].rotation.x=Math.sin(elapsed*4+n.phase)*.25;n.legs[1].rotation.x=-n.legs[0].rotation.x;
+    n.x=pos.x;n.z=pos.z;n.root.rotation.y=n.heading;if(!n.animate){n.legs[0].rotation.x=Math.sin(elapsed*4+n.phase)*.25;n.legs[1].rotation.x=-n.legs[0].rotation.x;}
    }
+   n.animate?.(dt,n.air>0,n.recovery>0);
    n.root.position.set(n.x,n.air,n.z);
   }
   props.update(dt,handleChains);
   for(let i=effects.length-1;i>=0;i--){const effect=effects[i];effect.life-=dt;effect.g.scale.setScalar(1+(effect.max-effect.life)*5);if(effect.life<=0){scene.remove(effect.g);effect.g.traverse(o=>o.geometry?.dispose());effects.splice(i,1);}}
  }
  const target=started?tim.root.position.clone().add(new THREE.Vector3(0,1.7,-3)):new THREE.Vector3(0,1,-8);
- target.y=started?1.7:1;follow.lerp(target,1-Math.exp(-dt*5));const distance=started?15.5:33;
+ target.y=started?1.7:1;follow.lerp(target,1-Math.exp(-dt*5));const distance=started?10.5:33;
  cameraGoal.set(follow.x+Math.sin(yaw)*Math.cos(pitch)*distance,follow.y+Math.sin(pitch)*distance,follow.z+Math.cos(yaw)*Math.cos(pitch)*distance);
  camera.position.lerp(cameraGoal,1-Math.exp(-dt*5));camera.lookAt(follow);camera.updateMatrixWorld();
  for(let i=bubbles.length-1;i>=0;i--){const b=bubbles[i];if(active&&!b.pinned)b.life-=dt;
@@ -366,7 +423,7 @@ function animate(){
   b.el.style.left=`${x}px`;b.el.style.top=`${y}px`;b.el.style.display=pos.z>1||paused?'none':'block';
   if(b.life<=0){b.el.remove();bubbles.splice(i,1);}
  }
- drawMap();renderer.render(scene,camera);
+ updateEnergy();drawMap();renderer.render(scene,camera);
 }
 camera.position.set(16,21,30);animate();
-window.__GTA_DEBUG__=()=>({started,paused,score,speed:6.1,jump,sound:audio.enabled,speaking:audio.speaking,tim:{x:tim.root.position.x,z:tim.root.position.z},props:props.items.map(p=>({type:p.type,x:p.x,z:p.z,down:p.down})),airborne:npcs.filter(n=>n.air>0).length,drawCalls:renderer.info.render.calls});
+window.__GTA_DEBUG__=()=>({started,paused,score,energy,nearSpritz:canRefill(tim.root.position),speed:energySpeed(energy),jump,detailedTim:!!tim.detailed,animatedNPCs:npcs.filter(n=>n.animate).length,sound:audio.enabled,speaking:audio.speaking,tim:{x:tim.root.position.x,z:tim.root.position.z},props:props.items.map(p=>({type:p.type,x:p.x,z:p.z,down:p.down})),airborne:npcs.filter(n=>n.air>0).length,drawCalls:renderer.info.render.calls});

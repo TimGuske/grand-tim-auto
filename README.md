@@ -1,4 +1,4 @@
-# Grand Tim Auto — Winnenden Unleashed
+# Grand Tim Altstadt — Winnenden Unleashed
 
 Ein kleiner, endloser 3D-Comic-Spielplatz mit Vite und Three.js. Erste Testversion: https://timguske.github.io/grand-tim-auto/ .
 
@@ -21,20 +21,21 @@ npm run preview
 
 `dist/` enthält die fertige statische App. HTML nicht direkt per Doppelklick öffnen, sondern über einen Webserver.
 
-## Spielen
+## Spielen (0.3)
 
-- WASD / Pfeiltasten: kamerarelativ laufen, jetzt dauerhaft schneller (6,1 statt 4,3 Spielmeter/Sekunde). Ein separater Sprint entfällt.
-- Leertaste: Rempler im Radius von 2,8 Spielmetern, 0,48 Sekunden Abklingzeit. Drei wechselnde Reaktionen: Schubser, hoher Hopser und Drehung.
-- E / STAMPFER: Tim springt und löst bei der Landung eine Comic-Druckwelle mit 4,6 Spielmetern Reichweite aus (2,4 Sekunden Abklingzeit).
-- Handy: linker Joystick, REMPLER und STAMPFER; kein Sprintknopf mehr.
-- Freie Spielfläche ziehen: Kamera drehen und neigen.
-- Escape oder Pause: pausieren. Tabwechsel pausiert automatisch.
-- „Mit Ton starten“ aktiviert Geräusche und eine Begrüßung direkt beim Start-Tippen. TON AN/AUS schaltet um. Der Audiokontext wird bei Eingaben erneut freigeschaltet; auf unterstütztem WebKit wird die Wiedergabe-Audiosession verwendet. Deutsche Browserstimme als vorläufiger Ersatz, noch keine zugesicherte echte Dialektstimme. Verfügbarkeit und Qualität müssen auf dem Zielhandy geprüft werden.
-- Vollbild-Taste: verwendet die Fullscreen-API, falls vorhanden; auf iPhone erscheint sonst der Home-Bildschirm-Hinweis.
+- WASD / Pfeile oder Touch-Joystick: laufen. Ohne Sprintknopf.
+- Leertaste / SCHLAG: rechte Gerade mit Deckung, Körperdrehung und Rückzug. Treffer bei 0,39 Sekunden; Bewegungsdauer rund 0,88 Sekunden. Originalhand bleibt erhalten.
+- E / STAMPFER: springen und Comic-Druckwelle auslösen.
+- F / APEROL NACHTANKEN: am orangefarbenen Spritz-Stand links am Platz Energie auffüllen. Die Leiste leert sich in 200 aktiven Sekunden. Unter 25 % sinkt das Lauftempo allmählich von 6,1 auf mindestens 3,4. Pause verbraucht keine Energie.
+- Freie Spielfläche ziehen: Kamera drehen. Escape / Pause: pausieren.
+- Mit Ton starten: geschnittene schwäbische Aufnahmen, tiefe Männerstimme und frechere Frauenstimme. Keine System-Sprachausgabe.
+- Vollbild: Fullscreen-API; auf iPhone alternativ über „Zum Home-Bildschirm“ öffnen.
 
-16 Marktgegenstände aus fünf Gruppen (Kisten, Fässer, Blumentöpfe, Stühle, Tafeln) lassen sich umwerfen. Sie fliegen, drehen sich, können weitere Gegenstände oder Passanten erwischen und kehren nach zwölf Sekunden zurück. Gegenstandstreffer geben 10 Punkte, Gegenstands-Kettenreaktionen 15 und Passanten-Kettenreaktionen 40 vor dem Multiplikator.
-
-Ein Passantentreffer gibt 25 Punkte. Weitere Treffer binnen 2,5 Sekunden erhöhen den Multiplikator bis 4×. Figuren springen und drehen sich, landen wieder und können nach kurzer Erholung erneut angerempelt werden. Punkte leben nur im Arbeitsspeicher und verschwinden beim Neuladen. Keine Polizei, Autos, Datenbank, Konten oder Spielzeitbegrenzung.
+12 Passanten verwenden zwei Cartoon-Modelle von Canino3d mit Kleidungsfarbvarianten
+und individueller Gehphase. Download und Lizenz: [CREDITS.md](CREDITS.md); die
+Credits sind auch im Startbildschirm verlinkt. 16 umwerfbare Marktgegenstände,
+Comic-Knockback und Kettenreaktionen bleiben enthalten. Punkte und Energie leben
+nur im Arbeitsspeicher und werden beim Neuladen zurückgesetzt.
 
 ## GitHub Pages
 
@@ -53,8 +54,8 @@ Die erste Version wird aus dem separaten Zweig `gh-pages` ausgeliefert. Er enth�
 - Prozedural modellierte, frei stilisierte Marktstraße mit Schwaikheimer Torturm, Fachwerkfassaden, Marktbrunnen, Bäumen und Marktstand; kein maßstabsgetreuer Nachbau. Orientierung: [Marktplatz Winnenden](https://www.winnenden-entdecken.de/attraktion/marktplatz-winnenden-9ac3dda74c).
 - Tim basiert auf den drei Fotos aus dem vorherigen Chat: schwarze Brille, Schnurrbart, Beanie, dunkler Schal und marineblauer Mantel. Die privaten Originalfotos werden weder ausgeliefert noch ins Repository kopiert. Das nachgereichte erste Poster ist nun die visuelle Richtung: warme Sonne, steinerner Torturm mit Walmdach und angeschlossenen Gebäuden, längerer Mantel mit hellen Sneakern, üppigere Baumkronen sowie schwarz/weiß/pink/gelbe Comic-Oberfläche. Die Echtzeitmodelle sind weiterhin prozedurale Stilisierungen und erreichen noch nicht den Detailgrad der Illustration.
 - Statische Stadtgeometrie wird nach Material zusammengefasst; Pflaster nutzt Instancing. Pixeldichte ist auf 1,7 begrenzt. Echte Smartphone-Leistung muss noch auf Zielgeräten geprüft werden.
-- Feste Spielfeldgrenzen und Brunnen-Kollision; Bänke, Bäume und Passanten sind im ersten Stand durchlaufbar. Kamera kann am Rand Gebäude schneiden. Noch keine komplexe Navigation, vollständige Starrkörperphysik, fertigen KI-Dialektstimmen oder Missionen.
-- Schriftarten: Barlow Condensed und DM Sans über Google Fonts, mit lokalen System-Fallbacks. Die Spielgeometrie braucht keine externen Modelle oder Texturen. Sprachausgabe kann abhängig vom System einen Sprachdienst nutzen.
+- Feste Spielfeldgrenzen und Brunnen-Kollision; Bänke, Bäume und Passanten sind im ersten Stand durchlaufbar. Kamera kann am Rand Gebäude schneiden. Noch keine komplexe Navigation, vollständige Starrkörperphysik oder Missionen.
+- Schriftarten: Barlow Condensed und DM Sans über Google Fonts, mit lokalen System-Fallbacks. Figurenmodelle, Texturen und Sprachclips werden mit dem Spiel ausgeliefert.
 
 ## Aufbau
 
@@ -67,3 +68,17 @@ Eine einzige Phrase-ID liefert Sprechblase und gesprochene Zeile. Es spricht nur
 `public/audio/manifest.json` enthält neun von Tim eingesprochene schwäbische Sprüche in je zwei freigegebenen Comicstimmen. Männliche Figuren inklusive Tim verwenden die tiefe Stimme; weibliche Figuren die höhere, frechere Variante. Beide sind um 12 % beschleunigt. Die Originalaufnahmen bleiben lokal im ignorierten `work/`; nur 18 zugeschnittene, bearbeitete MP3-Clips (zusammen rund 400 kB) werden ausgeliefert. Es gibt keine Browser-Computerstimme mehr. Die Clips werden vorgeladen und über den beim Start-Tippen aktivierten AudioContext abgespielt. Bei fehlenden Clips bleibt die Sprechblase sichtbar.
 
 Die zwölf Tests decken Kernregeln, Stimme je Figur, synchronen Dialog, Dialogende/Pause, Abbruch beim Laden, fehlende Clips, die Vollständigkeit beider Stimmen sowie Gegenstandsflug und Rücksetzen ab. Echtes Multitouch und hörbare Wiedergabe auf iPhone/Android stehen weiterhin zur Prüfung aus.
+
+## Detaillierter Tim (lokaler Stand)
+
+Das Spiel lädt die freigegebene Tim-Figur aus `public/models/tim-v4.glb`. `src/tim-model.js` ergänzt Gelenke und weiche Gewichte für Laufen und Aktionen, ohne die freigegebenen Gesichtsmerkmale zu ändern. Der Kopf besitzt keine Brillengläser; die vorhandenen Augen bleiben erhalten. Die bisherige Figur dient bei Ladefehlern als Ersatz. NPCs verwenden weiterhin die prozeduralen Modelle. `figuren.html` zeigt die separate Figurenprobe.
+
+Die Modelle und Texturen werden mit der Website ausgeliefert, ohne externen Modellservice. Die vierzehn Tests prüfen zusätzlich Gelenkgewichte und unveränderte Ruhepose. Dieser Stand ist noch nicht veröffentlicht.
+
+## Faustschlag und Passanten (lokaler Stand)
+
+Leertaste beziehungsweise FAUST löst einen abwechselnden linken/rechten Schlag mit kurzem Ausholen und geschlossenem Faustmodell aus. Treffer wirken nach vorn und erst während der Kontaktphase. Der Stampfer bleibt auf E beziehungsweise seiner Touch-Taste.
+
+Zwölf Passanten verwenden sechs frei nutzbare CC0-Modelle von Quaternius (drei Männer, drei Frauen), mit geklonten Skeletten und Idle-/Walk-/Jump-Animationen. Die passenden Comicstimmen bleiben zugeordnet. Herkunft und Lizenz stehen in CREDITS.md und public/models/people/LICENSE.txt. 17 automatisierte Tests prüfen jetzt auch Schlagrichtung, Animationsphase und die Modell-/Animationsdateien. Dieser Stand ist noch nicht veröffentlicht.
+
+Aktuelle Korrektur: Nur der rechte Arm schlägt; Tim behält seine Originalhand ohne zusätzliches Faustmodell. Der Treffer liegt auf oberer Schulterhöhe. Die Schuhe aller NPCs sind neu gewichtet und bleiben beim Gehen formstabil. 19 Tests prüfen unter anderem die Schuhform über mehrere Gehphasen.

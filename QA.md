@@ -38,3 +38,34 @@ Die erste Version wurde am 17. November 2026 erfolgreich über GitHub Pages ver�
 - Zwölf automatisierte Tests erfolgreich; Produktionsbuild erfolgreich. Lokaler Browserstart zeigt Ton an, Sprachstart und bestätigten Spruch. Hörbarer Test auf echtem Handy weiterhin offen.
 - Zusätzliche echte Browserprüfung: alle 18 Clips nacheinander über `GameAudio` dekodiert und bis zum Ende abgespielt, AudioContext jeweils `running`, dekodierter Spitzenpegel jeweils größer als 0,01. Ergebnis: 18/18 erfolgreich. Diese technische Prüfung ersetzt keinen hörenden Test auf einem echten Handy.
 - 0.2.1 veröffentlicht über Pages-Lauf `44128822488` (Deployment `9921e6b`). Online: korrekter JS-Build und alle 18 MP3s mit identischem SHA-256 geprüft; Spielstart zeigt `Schwäbische Comicstimmen` und `Ha sag a mol!`.
+
+## Neue Tim-Figur – lokaler Spielstand
+
+- Freigegebenen Kopf mit Polo-Logo und entfernten Brillengläsern in die Spielfigur übernommen. Vorhandene Augen und Gesichtstextur bleiben erhalten. Figurenprobe bleibt als eigene Seite verfügbar.
+- Laufzeit-Skelett für Hüften, Knie, Schultern und Kopf; weiche Gewichte am Mantel. Laufbewegung, Rempler und Stampfer verwenden das neue Modell. Bei fehlgeschlagenem Modellladen bleibt die bisherige Figur spielbar.
+- Kameraabstand im Spiel von 15,5 auf 10,5 verringert. Die neue Figur lädt im Hintergrund; der Startbildschirm meldet den Ladezustand.
+- 14 Tests erfolgreich, einschließlich normalisierter Gelenkgewichte und unveränderter Geometrie in Ruhepose. Produktionsbuild erfolgreich. Browser: Modell sichtbar, Tastaturlaufen und Touch-Aktionen ausgelöst, keine Konsolenfehler oder Warnungen.
+- Noch offen: echte Smartphone-Leistung, feinere Arm-/Ellbogenanimation, sauberer Schalübergang und NPCs im passenden Detailgrad. Dieser Stand ist lokal und wurde nicht veröffentlicht.
+
+## Faustschlag und freie Passanten – lokaler Stand
+
+- Sechs CC0-Modelle von Quaternius: drei Männer, drei Frauen. Je zwei unabhängige Instanzen ergeben zwölf Passanten. Originale Idle-/Walk-/Jump-Animationen und separate Skelettklone; Stimmzuordnung nach Modell. Quellen, Lizenz und Konvertierung in CREDITS.md dokumentiert.
+- Rempler durch abwechselnden linken/rechten Faustschlag ersetzt. Neue Ellbogen-/Handgelenke, geschlossene Comic-Fäuste während der Aktion, Deckung und leichte Körperdrehung. Treffer nach 0,16 Sekunden, maximal 2 Einheiten vor Tim; kein Rundum-Treffer durch Schlagen. Touch-Taste FAUST und Leertaste. Stampfer bleibt erhalten.
+- 17 Tests erfolgreich: zusätzlich gerichtete Reichweite, Kontaktphase und eingebettete Skelette/Animationsclips aller sechs Assets. Produktionsbuild und Diff-Prüfung erfolgreich.
+- Browser: neue Passanten sichtbar und laufend; nach Tastaturbewegung und Touch-Faustschlag ein bestätigter Treffer (+25 · POW! FAUSTSCHLAG), fliegender animierter Passant. Keine Konsolenfehler/-warnungen. Schlagpose separat mit derselben Animationsfunktion visuell geprüft.
+- Weiterhin lokal, nicht veröffentlicht. Smartphone-Leistung und echtes Multitouch bleiben auf dem Zielgerät zu prüfen.
+
+## Korrektur: rechter Schlag und NPC-Füße
+
+- Schlag auf anatomisch rechts beschränkt (lokal -X bei Blickrichtung +Z). Zusatzfaust vollständig entfernt; Originalhand ohne Verkleinerung oder Formänderung. Ober- und Unterarm strecken in dieselbe Richtung; Handgelenk beim Treffer von 2,13 auf 2,38 angehoben. Keine wechselnden Schlagseiten oder Körperdrehung.
+- NPC-Schuhverzerrung lokalisiert: gemischte Fuß-/Unterschenkelgewichte streckten Kanten beim Gehen bis über Faktor 8. Schuh und unterer Knöchel jetzt starr am jeweiligen Fuß, weicher Übergang oberhalb des Knöchels. Alle sechs GLBs neu konvertiert; Cacheversion geändert.
+- Neuer Regressionstest misst Schuhkanten aller sechs Figuren in sechs Gehphasen: weniger als 1 Prozent Abweichung. Rechte Schlagpose auf Höhe, Streckung, unveränderte Hand und ruhenden linken Arm geprüft. Insgesamt 19 Tests und Produktionsbuild erfolgreich. Seitenansicht der Schlagpose sowie mehrere Gehphasen von Mann und Frau visuell geprüft. Weiterhin lokal, nicht veröffentlicht.
+
+## 0.3 – Grand Tim Altstadt, Cartoon-Passanten und Aperol-Energie
+
+- Neuer Name und umrandetes dreizeiliges SVG-Logo; pinker Untertitel direkt darunter.
+- Freigegebener Tim mit neuer rechter Geraden aus der Boxprobe ins Spiel übernommen. Treffer nach 0,39 s. Höhere Deckung, gerades Handgelenk, Körperdrehung, Rückzug; Originalhände bleiben erhalten. Die automatische Prüfung lädt das tatsächliche Tim-Modell und prüft auch gedrehte/verschobene Spielerpositionen. Mantel-/Ellbogenübergänge bleiben eine Grenze der generierten Geometrie.
+- Canino3d-Mann und -Frau mit Original-Skeletten, lokaler Gehbewegung und Kleidungsfarbvarianten. Texturen auf 512 px reduziert; Downloads zusammen rund 10,8 MB. Credits im Spiel erreichbar. Schuhgewichte korrigiert und über sechs Gehphasen auf Formstabilität geprüft.
+- Neonorange Aperol-Energie: 200 s aktive Zeit bis leer, Pause stoppt Verbrauch, unter 25 % reduziertes Tempo mit erreichbarem Stand. Auffüllen nur nahe dem sichtbaren Stand, per F oder Touch. Orange Markierung auf der Karte.
+
+- 22 automatisierte Tests erfolgreich. Produktionsbuild erfolgreich. Browserprüfung: beide neuen Passantenmodelle sichtbar, keine Konsolenfehler/-warnungen; Lauf zum Spritz-Stand, eingeblendeter Nachfüllbutton, Energieanstieg auf 100 % und Bestätigung überprüft. Querformat 844 × 390: Logo, neonorange Energie, Score und Touch-Aktionen ohne Überlappung. Echter Handy-Leistungs- und Multitouch-Test bleibt bei Tim.
