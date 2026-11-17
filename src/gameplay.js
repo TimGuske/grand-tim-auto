@@ -12,5 +12,5 @@ export function moveWithinWorld(position, dx, dz, radius = .48) {
   }
   return { x, z };
 }
-export function canBump(player, target) { return target.air <= 0 && target.cooldown <= 0 && Math.hypot(player.x-target.x, player.z-target.z) < 2.7; }
-export function scoreForCombo(combo) { return 25 * Math.min(Math.max(combo, 1), 4); }
+export function canBump(player, target, radius = 2.7) { return target.air <= 0 && target.cooldown <= 0 && Math.hypot(player.x-target.x, player.z-target.z) < radius; }
+export function scoreForCombo(combo, base = 25) { return base * Math.min(Math.max(combo, 1), 4); }
