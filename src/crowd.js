@@ -1,4 +1,5 @@
 import {moveWithinWorld} from './gameplay.js';
+import {findPath,nearestFree} from './world.js';
 const conversations=[
  {x:-8.1,z:-11.6,partnerX:-5.8,partnerZ:-11.1},
  {x:-5.8,z:-11.1,partnerX:-8.1,partnerZ:-11.6},
@@ -9,9 +10,9 @@ const conversations=[
 ];
 export function crowdPlan(index){
  const pair=conversations[index];
- if(pair)return {...pair,homeX:pair.x,homeZ:pair.z,behavior:'chat',heading:Math.atan2(pair.partnerX-pair.x,pair.partnerZ-pair.z),walkSpeed:1.2};
+ if(pair){const pos=nearestFree(pair);return {...pair,...pos,homeX:pos.x,homeZ:pos.z,behavior:'chat',heading:Math.atan2(pair.partnerX-pair.x,pair.partnerZ-pair.z),walkSpeed:1.2};}
  const x=-8+(index%4)*5,z=-13+Math.floor(index/4)*10;
- return {x,z,homeX:x,homeZ:z,behavior:'walk',heading:index*1.73,walkSpeed:1.1+(index%3)*.16};
+ const pos=nearestFree({x,z});return {...pos,homeX:pos.x,homeZ:pos.z,behavior:'walk',heading:index*1.73,walkSpeed:1.6+(index%3)*.16};
 }
 export function stepCrowd(n,dt,elapsed){
  if(n.recovery>0)return false;
@@ -19,7 +20,9 @@ export function stepCrowd(n,dt,elapsed){
  if(n.behavior==='chat'){
   const dx=n.homeX-n.x,dz=n.homeZ-n.z,distance=Math.hypot(dx,dz);
   if(distance<.18){n.heading=Math.atan2(n.partnerX-n.x,n.partnerZ-n.z);return false;}
-  n.heading=Math.atan2(dx,dz);speed=Math.min(speed,distance/dt);
+  if(!n.returnPath?.length)n.returnPath=findPath(n,{x:n.homeX,z:n.homeZ});
+  while(n.returnPath.length>1&&Math.hypot(n.returnPath[0].x-n.x,n.returnPath[0].z-n.z)<.6)n.returnPath.shift();
+  const next=n.returnPath[0]||{x:n.homeX,z:n.homeZ};n.heading=Math.atan2(next.x-n.x,next.z-n.z);speed=Math.min(speed,distance/dt);
  }else n.heading+=Math.sin(elapsed*.5+n.phase)*dt*.45;
  const dx=Math.sin(n.heading)*speed*dt,dz=Math.cos(n.heading)*speed*dt;
  const pos=moveWithinWorld(n,dx,dz);

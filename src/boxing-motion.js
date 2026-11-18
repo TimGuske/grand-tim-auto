@@ -66,7 +66,7 @@ export function extendRig(tim){
  }
  tim.box={pelvis,spine,chest,feet,bones};return tim;
 }
-function aimChain(tim,joint,hinge,end,target,pole,blend){
+export function aimChain(tim,joint,hinge,end,target,pole,blend){
  tim.root.updateMatrixWorld(true);
  target=target.clone().applyMatrix4(tim.root.matrixWorld);
  pole=pole.clone().applyMatrix4(tim.root.matrixWorld);

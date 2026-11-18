@@ -63,3 +63,13 @@ test('every playable phrase ships both approved voice files',()=>{
   assert.equal(existsSync(new URL(`../public/audio/${file}`,import.meta.url)),true);
  }
 });
+
+test('Aperol chime schedules three quiet notes, respects mute and yields to speech',()=>{
+ const {audio}=environment(),notes=[];audio.context.currentTime=0;
+ audio.context.createGain=()=>({gain:{setValueAtTime(){},linearRampToValueAtTime(v){assert.ok(v<=.06);},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}});
+ audio.context.createOscillator=()=>{const note={frequency:{},connect(g){return g;},disconnect(){},start(t){this.time=t;},stop(){this.stopped=true;}};notes.push(note);return note;};
+ audio.aperolAlarm();assert.equal(notes.length,3);assert.deepEqual(notes.map(n=>n.time),[0,.18,.36]);
+ audio.stopAlarm();assert.equal(audio.alarmSources.size,0);
+ audio.speaking=true;audio.aperolAlarm();assert.equal(notes.length,3);
+ audio.speaking=false;audio.enabled=false;audio.aperolAlarm();assert.equal(notes.length,3);
+});

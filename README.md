@@ -1,6 +1,10 @@
 # Grand Tim Altstadt — Winnenden Unleashed
 
-Ein kleiner, endloser 3D-Comic-Spielplatz mit Vite und Three.js. Erste Testversion: https://timguske.github.io/grand-tim-auto/ .
+Ein kleiner, endloser 3D-Comic-Spielplatz mit Vite und Three.js. Spielbare Version 0.4.0: https://timguske.github.io/grand-tim-auto/ .
+
+## Stand 0.4.0
+
+Freigegebener Marktplatz ohne Missionen: vier kostenlose Passantenmodelle, rechter Faustschlag nur für Personen und rechter Fußtritt nur für Gegenstände, zwei zufällige Comic-Flugreaktionen, dauerhaftes Chaos mit aufräumendem Hausmeister, 51 eingesprochene Sprüche in zwei Comic-Stimmen, Musikmemo als leise Schleife und deutlicher Aperol-Alarm. Bei leerem Tank schleicht Tim in der freigegebenen erschöpften Haltung. Gebäude- und Gegenstandskollisionen sowie Touch-Bedienung sind überarbeitet. Keine Autos und kein Backend.
 
 ## Starten
 
@@ -77,8 +81,28 @@ Die Modelle und Texturen werden mit der Website ausgeliefert, ohne externen Mode
 
 ## Faustschlag und Passanten (lokaler Stand)
 
-Leertaste beziehungsweise FAUST löst einen abwechselnden linken/rechten Schlag mit kurzem Ausholen und geschlossenem Faustmodell aus. Treffer wirken nach vorn und erst während der Kontaktphase. Der Stampfer bleibt auf E beziehungsweise seiner Touch-Taste.
+Leertaste beziehungsweise SCHLAG löst Tims rechten Faustschlag aus und trifft ausschließlich Passanten. X beziehungsweise TRITT ersetzt den Stampfer: Tim hebt das rechte Knie, tritt niedrig nach vorne und zieht das Bein zurück; der linke Fuß bleibt stehen. Nur dieser Tritt kippt Gegenstände um. Treffer entstehen in der Kontaktphase und nur vor Tim. Es gibt keinen Sprung und keine Flächenwirkung. Getretene Gegenstände können weitere Gegenstände umwerfen; sie schlagen keine Passanten um.
 
 Zwölf Passanten verwenden sechs frei nutzbare CC0-Modelle von Quaternius (drei Männer, drei Frauen), mit geklonten Skeletten und Idle-/Walk-/Jump-Animationen. Die passenden Comicstimmen bleiben zugeordnet. Herkunft und Lizenz stehen in CREDITS.md und public/models/people/LICENSE.txt. 17 automatisierte Tests prüfen jetzt auch Schlagrichtung, Animationsphase und die Modell-/Animationsdateien. Dieser Stand ist noch nicht veröffentlicht.
 
 Aktuelle Korrektur: Nur der rechte Arm schlägt; Tim behält seine Originalhand ohne zusätzliches Faustmodell. Der Treffer liegt auf oberer Schulterhöhe. Die Schuhe aller NPCs sind neu gewichtet und bleiben beim Gehen formstabil. 19 Tests prüfen unter anderem die Schuhform über mehrere Gehphasen.
+
+### Hintergrundmusik und Tastatur (aktueller lokaler Stand)
+
+Leertaste: Schlag; X: rechter Fußtritt; WASD/Pfeile: Laufen; F: Aperol. Als Hintergrundmusik dient das von Tim bereitgestellte neue Memo „Nelkenweg 2“ (18. November 2026), als bearbeitete Stereo-MP3. Schleifenlänge 65,62 Sekunden, Fade-in 1,5 Sekunden, Fade-out 2 Sekunden. Leiser Musikpegel, bei Sprache zusätzlich um rund 13 dB abgesenkt. Die Aufnahme ersetzt die generierte Synthwave-Musik. Pause, Ton aus und Musik aus stoppen die Schleife; ein verspäteter Ladevorgang startet keine Musik nach dem Pausieren.
+
+### Gegenstände und Aperol-Alarm
+
+Stehende Kisten, Töpfe, Fässer, Stühle und Tafeln blockieren Tim und Passanten. Beim Umkippen wird der Weg frei; nach dem Aufräumen blockieren sie wieder. Nahe umkickbare Gegenstände haben einen dezenten Bodenring, der nächste Gegenstand im Trittbereich wird deutlicher markiert. Unter 25 % Aperol-Energie gibt es eine visuelle Warnung und einmalig einen kurzen Dreiklang. Er wartet laufende Sprache ab, respektiert Ton aus/Pause und wird nach dem Nachtanken erneut bereit.
+
+### Comic-Flug und sichtbare Ziele
+
+Fausttreffer schicken Passanten wild rotierend nach oben aus dem Bild; nach zufällig 4–12 Sekunden tauchen sie an einer freien Stelle mit Abstand zu Tim wieder auf. Gegenstandsringe pulsieren mit einer auslaufenden Ringwelle. Unter 25 % Energie schwebt ein großer animierter orangefarbener Pfeil über dem Spritz-Stand; nach dem Nachtanken verschwindet er. Am Tor sind ein größerer WINNENDEN-Schriftzug und das Winnendener Stadtwappen angebracht.
+
+### Unterschiedliche Trefferreaktionen
+
+Passanten erhalten zufällig eine von zwei Reaktionen: ein flacher, etwa 3,2–3,7 Sekunden langer Flug quer über den Platz und über eine Häuserzeile oder ein niedriger Flug gegen eine tatsächliche Hausfassade mit kurzem Aufprall, anschließendem Herunterfallen und einer kurzen Pause am Boden. Erst dann verschwinden sie und kehren nach 4–12 Sekunden an einer freien Stelle zurück. Die Drehung erfolgt um die Körpermitte.
+
+### Erschöpfung bei leerem Aperol-Tank
+
+Unter 25 % erscheint eine große orange Warnkarte mit konkreter Aufforderung zum Nachtanken; der Pfeil über dem Stand bleibt sichtbar. Die Laufgeschwindigkeit sinkt von 6,1 auf 0,85 Einheiten/s, also bei 0 % auf etwa ein Siebtel. Unter 10 % wird Tim zunehmend gebeugt; bei 0 % verwendet er die von Tim freigegebene erschöpfte Haltung mit gesenktem Kopf, eng hängenden Armen und kurzen Schritten. Nach dem Nachtanken ist Haltung und Geschwindigkeit sofort wieder normal. Schlagen beim Gehen umgeht die Verlangsamung nicht.

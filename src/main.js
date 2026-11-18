@@ -1,23 +1,34 @@
+import {cameraView,cameraLineClear} from './camera.js';
+import {applyExhaustionPose} from './exhaustion-motion.js';
+import {createRefillBeacon} from './refill-beacon.js';
+import {launchPassant,stepPassantFlight} from './passant-flight.js';
+import {turnToMovement} from './locomotion.js';
+import {impactTargets} from './impact.js';
+import {poseKick,KICK_DURATION,KICK_CONTACT} from './kick-motion.js';
+import {bindActionButton,bindJoystick} from './touch-controls.js';
 import * as THREE from 'three';
 import './style.css';
+import { nearestFree, separatePeople, moveWorld, canStand, collides, setPropObstacles } from './world.js';
 import { makeCharacter } from './characters.js';
 import { loadTim, poseTimArms } from './tim-model.js';
 import { extendRig, poseBoxing, PLAYBACK_SPEED } from './boxing-motion.js';
-import { SPRITZ_STAND, drainEnergy, energySpeed, canRefill } from './energy.js';
+import { SPRITZ_STAND, drainEnergy, energySpeed, canRefill, createAperolAlarm } from './energy.js';
+import { createCleanup } from './cleanup.js';
 import { crowdPlan, stepCrowd } from './crowd.js';
 import { loadPerson } from './people.js';
-import { PUNCH_DURATION, PUNCH_CONTACT, inPunchReach } from './combat.js';
+import { PUNCH_DURATION, PUNCH_CONTACT } from './combat.js';
 import { createProps } from './props.js';
 import { GameAudio, PHRASES } from './audio.js';
+import { createPassantLines } from './passant-speech.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 document.body.classList.toggle('touch', matchMedia('(any-pointer: coarse)').matches || new URLSearchParams(location.search).has('touch'));
-import { FOUNTAIN, moveWithinWorld, canBump, scoreForCombo } from './gameplay.js';
+import { FOUNTAIN, moveWithinWorld, scoreForCombo } from './gameplay.js';
 
 const $ = id => document.getElementById(id);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#85bddc');
-scene.fog = new THREE.Fog('#b1ccce', 70, 140);
-const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, .1, 160);
+scene.fog = new THREE.Fog('#b1ccce',70,140);
+const camera = new THREE.PerspectiveCamera(57, innerWidth / innerHeight, .1, 650);
 let renderer;
 try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); }
 catch { $('game').innerHTML = '<p style="padding:25vh 15vw">Die 3D-Welt braucht WebGL. Bitte öffne das Spiel in einem aktuellen Browser mit aktivierter Grafikbeschleunigung.</p>'; $('intro').hidden = true; throw new Error('WebGL unavailable'); }
@@ -127,9 +138,12 @@ for(let row=0;row<13;row++){
  }
 }
 box(tower,'#664e3c',0,16.25,0,1.15,.65,.95);roof(tower,1.5,1.3,16.55,'#8c4e34');
-// Local shield, rather than a generic clock, echoes the illustrated Winnenden landmark.
-sign(tower,'W',0,5.2,2.82,1.3);box(tower,'#a5463e',0,5.2,2.75,1.48,1.58,.09);
-sign(tower,'WINNENDEN',0,4.1,2.7,3.4);
+// Actual Winnenden arms: white shield, green vines and three black antlers on gold.
+const crestTexture=new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}landmarks/winnenden-wappen.svg`);
+crestTexture.colorSpace=THREE.SRGBColorSpace;
+const crest=new THREE.Mesh(new THREE.PlaneGeometry(1.9*535/587,1.9),new THREE.MeshBasicMaterial({map:crestTexture,transparent:true,alphaTest:.1}));
+crest.position.set(0,6,2.84);tower.add(crest);
+sign(tower,'WINNENDEN',0,4.35,2.82,5.0);
 // Baroque market fountain, octagonal basin, water and statue.
 const fountain=new THREE.Group();fountain.position.set(FOUNTAIN.x,0,FOUNTAIN.z);scene.add(fountain);
 cyl(fountain,'#9a9785',0,.15,0,2.5,2.7,.3,8);cyl(fountain,'#c3b392',0,.45,0,2.28,2.4,.6,8);
@@ -191,6 +205,9 @@ for(const x of [-.9,-.3,.3,.9]){
  cyl(spritz,'#ff791c',x,1.76,0,.13,.07,.25);const orange=cyl(spritz,'#ffb230',x+.1,1.88,0,.10,.10,.035);orange.rotation.x=Math.PI/2;
 }
 
+
+const helpers={scene,box,ball,cyl,mesh,mat,sign,random};
+const town={start:{x:0,z:7}};
 // Merge the static town by material: mobile GPUs draw dozens of batches instead of thousands.
 scene.updateMatrixWorld(true);
 const batches = new Map();
@@ -201,7 +218,7 @@ scene.traverse(object => {
   batches.get(key).objects.push(object);
 });
 for (const { material, objects } of batches.values()) {
-  const geometries = objects.map(object => object.geometry.clone().applyMatrix4(object.matrixWorld));
+  const geometries = objects.map(object => (object.geometry.index?object.geometry.toNonIndexed():object.geometry.clone()).applyMatrix4(object.matrixWorld));
   const combined = mergeGeometries(geometries, false);
   if (combined) {
     const town = new THREE.Mesh(combined, material); town.castShadow = true; town.receiveShadow = true; scene.add(town);
@@ -210,13 +227,14 @@ for (const { material, objects } of batches.values()) {
   for (const geometry of geometries) geometry.dispose();
 }
 
-const helpers={scene,box,ball,cyl,mesh,mat,sign,random};
 const character=(isTim,coat='#bb7855')=>makeCharacter(isTim,coat,helpers);
-const props=createProps(helpers);
-let tim=character(true);tim.root.position.set(0,0,7);
+const props=createProps(helpers);setPropObstacles(props.items);
+const refillBeacon=createRefillBeacon(scene,SPRITZ_STAND);
+
+let tim=character(true);tim.root.position.set(town.start.x,0,town.start.z);tim.heading=Math.PI;tim.root.rotation.set(0,tim.heading,0);
 // Keep the game responsive while the detailed model is transferred and decoded.
 loadTim().then(extendRig).then(avatar=>{
- avatar.root.position.copy(tim.root.position);avatar.root.quaternion.copy(tim.root.quaternion);
+ avatar.root.position.copy(tim.root.position);avatar.heading=tim.heading;avatar.root.rotation.set(0,avatar.heading,0);
  for(const bubble of bubbles)if(bubble.npc===tim)bubble.npc=avatar;
  scene.remove(tim.root);tim.root.traverse(o=>o.geometry?.dispose());scene.add(avatar.root);tim=avatar;
  $('figure-status').textContent='Tim ist bereit.';
@@ -230,48 +248,65 @@ const npcs=Array.from({length:12},(_,i)=>{
  avatar.root.position.set(plan.x,0,plan.z);avatar.root.rotation.y=plan.heading;
  return {...avatar,...plan,air:0,vy:0,vx:0,vz:0,cooldown:0,phase:random()*6,walking:plan.behavior==='walk'};
 });
+const caretaker=npcs[10];caretaker.behavior='cleanup';caretaker.x=10.5;caretaker.z=-15;caretaker.walking=false;caretaker.root.position.set(caretaker.x,0,caretaker.z);
+const cleanup=createCleanup(props,caretaker);
+const broom=new THREE.Group();
+cyl(broom,'#c5a46e',0,1,0,.035,.035,1.9,8);box(broom,'#d6a142',0,.1,0,.55,.18,.18);
+for(let i=0;i<8;i++)box(broom,'#785b37',-.24+i*.068,.025,0,.03,.15,.17);
+function equipCaretaker(avatar){
+ avatar.body.add(broom);broom.position.set(-.65,.12,.34);broom.rotation.z=-.12;
+ const badge=sign(avatar.root,'KEHRWOCHE',0,3.35,0,2.1);badge.material.depthTest=false;badge.renderOrder=5;
+}
+equipCaretaker(caretaker);
 // Replace each placeholder in place so active dialogue and physics retain their target.
 for(let i=0;i<npcs.length;i++)loadPerson(i).then(avatar=>{
- const npc=npcs[i];avatar.root.position.copy(npc.root.position);avatar.root.quaternion.copy(npc.root.quaternion);
- avatar.body.rotation.copy(npc.body.rotation);scene.remove(npc.root);npc.root.traverse(o=>o.geometry?.dispose());
- delete npc.legs;delete npc.arms;delete npc.head;scene.add(avatar.root);Object.assign(npc,avatar);
+ const npc=npcs[i];avatar.root.position.copy(npc.root.position);avatar.root.rotation.set(0,npc.heading,0);
+ avatar.body.rotation.copy(npc.body.rotation);if(npc===caretaker)broom.removeFromParent();scene.remove(npc.root);npc.root.traverse(o=>o.geometry?.dispose());
+ delete npc.legs;delete npc.arms;delete npc.head;scene.add(avatar.root);Object.assign(npc,avatar);if(npc===caretaker)equipCaretaker(npc);
 }).catch(error=>console.warn('Passant konnte nicht geladen werden',error));
-let energy=100,refillCooldown=0,walkPhase=0;
+const aperolAlarm=createAperolAlarm();
+// Local preview can start with an empty tank; production always starts full.
+const previewEnergy=import.meta.env.DEV?Number(new URLSearchParams(location.search).get('energy-start')??100):100;
+let energy=Number.isFinite(previewEnergy)?THREE.MathUtils.clamp(previewEnergy,0,100):100,refillCooldown=0,walkPhase=0;
 let started=false,paused=false,score=0,combo=0,lastHit=-10,punchCooldown=0,punchAnim=0,elapsed=0;
-let stompCooldown=0,jump=0,jumpVelocity=0,landingPending=false,punchPending=false,toastTime=0;
-const keys=new Set();let joystick={x:0,y:0},yaw=0,pitch=.24,drag=null;
+let punchQueued=false;
+let kickCooldown=0,kickAnim=0,kickPending=false,punchPending=false,toastTime=0;
+const keys=new Set();let joystick={x:0,y:0},yaw=0,pitch=.26,drag=null;
 const bubbles=[],effects=[];
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const audio=new GameAudio(message=>{ $('audio-status').textContent=message; });
-function resetInput(){keys.clear();joystick={x:0,y:0};drag=null;stickPointer=null;$('stick-knob').style.transform='';}
-function setPause(value){paused=value;resetInput();$('pause-overlay').hidden=!value;if(value){audio.stop();for(const b of bubbles){b.pinned=false;b.life=.1;}}}
+function resetInput(){keys.clear();joystick={x:0,y:0};drag=null;resetStick?.();$('stick-knob').style.transform='';}
+function setPause(value){paused=value;audio.setPlaying(started&&!value);resetInput();$('pause-overlay').hidden=!value;if(value){punchQueued=false;audio.stop();for(const b of bubbles){b.pinned=false;b.life=.1;}}}
 function updateSoundButton(){$('sound').textContent=audio.enabled?'TON AN':'TON AUS';$('sound').setAttribute('aria-pressed',String(audio.enabled));}
 function start(){
  const first=!started;started=true;setPause(false);$('intro').hidden=true;$('start').blur();
- if(first){audio.setEnabled($('start-sound').checked);updateSoundButton();if(audio.enabled){audio.effect();feedback(tim,PHRASES[0]);}}
+ if(first){audio.setEnabled($('start-sound').checked);updateSoundButton();if(audio.enabled){audio.effect();}}
  else audio.unlock();
 }
 $('start').onclick=start;$('resume').onclick=()=>{setPause(false);audio.unlock();};$('pause').onclick=()=>started&&setPause(!paused);
 $('help').onclick=()=>{setPause(true);$('pause-overlay').hidden=true;$('intro').hidden=false;$('start').textContent='WEITER GEHT’S ↗';};
 $('portrait-continue').onclick=()=>$('rotate').classList.add('dismissed');
-$('sound').onclick=()=>{audio.setEnabled(!audio.enabled);updateSoundButton();if(audio.enabled){audio.effect('bump');feedback(tim,PHRASES[0]);}else $('audio-status').textContent='Ton aus';};
+$('music').onclick=()=>{audio.unlock();audio.setMusicEnabled(!audio.musicEnabled);$('music').textContent=audio.musicEnabled?'♫ MUSIK AN':'♫ MUSIK AUS';$('music').setAttribute('aria-pressed',String(audio.musicEnabled));};
+$('sound').onclick=()=>{audio.setEnabled(!audio.enabled);updateSoundButton();if(audio.enabled){audio.effect('bump');}else $('audio-status').textContent='Ton aus';};
 function speechBubble(npc,text){
  for(let i=bubbles.length-1;i>=0;i--)if(bubbles[i].npc===npc){bubbles[i].el.remove();bubbles.splice(i,1);}
  const el=document.createElement('div');el.className='bubble';el.textContent=text;$('bubbles').appendChild(el);
  const bubble={el,npc,life:2.8,pinned:false};bubbles.push(bubble);return bubble;
 }
-function feedback(npc,phrase){
+const nextPassantLine=createPassantLines(npcs,PHRASES,random);
+function feedback(npc){
  // A single speaking character at a time. The exact phrase object drives text AND audio.
  if(audio.enabled&&audio.speaking)return;
+ const phrase=nextPassantLine(npc);if(!phrase)return;
  const bubble=speechBubble(npc,phrase.text);
  if(audio.enabled){bubble.pinned=true;const accepted=audio.speak(phrase,()=>{bubble.life=2.8;},()=>{bubble.pinned=false;bubble.life=.45;},npc.voice);if(!accepted)bubble.pinned=false;}
 }
-function popEffect(x,z,type='bump'){
- const g=new THREE.Group();g.position.set(x,type==='stomp'?.12:1.5,z);scene.add(g);
- if(type==='stomp'){
+function popEffect(x,z,type='bump',height=null){
+ const g=new THREE.Group();g.position.set(x,height??(type==='dust'?.12:type==='kick'?.55:1.5),z);scene.add(g);
+ if(type==='dust'){
   const ring=mesh(new THREE.TorusGeometry(.75,.035,4,32),'#f8dd8a',g);ring.rotation.x=Math.PI/2;
  }else for(let i=0;i<8;i++){const a=i*Math.PI/4;const s=box(g,i%2?'#f8db69':'#fff3ce',Math.sin(a)*.7,Math.cos(a)*.7,0,.1,.32,.1);s.rotation.z=-a;}
- effects.push({g,life:type==='stomp'?.7:.45,max:type==='stomp'?.7:.45});
+ effects.push({g,life:type==='dust'?.7:.45,max:type==='dust'?.7:.45});
 }
 function award(base){combo=elapsed-lastHit<2.5?combo+1:1;lastHit=elapsed;const points=scoreForCombo(combo,base);score+=points;return points;}
 function showScore(points,title){
@@ -279,56 +314,57 @@ function showScore(points,title){
  $('score-caption').textContent=score>=500?'Du bringsch den Fleck durcheinander!':'Des war aber koi Zufall.';
  $('toast').textContent=`+${points} · ${title}`;$('toast').classList.add('visible');toastTime=1.3;
 }
-function launchNPC(npc,origin,strength=1,variant=0){
- const dx=npc.x-origin.x,dz=npc.z-origin.z,len=Math.hypot(dx,dz)||1;
- const power=[7.5,4.2,9][variant];npc.vx=dx/len*power*strength;npc.vz=dz/len*power*strength;
- npc.vy=[7.2,10.8,5.8][variant]*strength;npc.air=.01;npc.cooldown=3;
- npc.reaction=variant;npc.spin=(random()>.5?1:-1)*(variant===1?11:5);npc.recovery=.35;
+function launchNPC(npc,origin){
+ launchPassant(npc,origin,random);
+ const pivot=new THREE.Group();pivot.position.y=1.4;npc.root.add(pivot);npc.root.updateMatrixWorld(true);pivot.attach(npc.body);npc.flightPivot=pivot;
 }
-function impact(radius,strength,variant,title,forwardOnly=false){
- let points=0,firstNPC=null;
- for(const npc of npcs)if(canBump(tim.root.position,npc,radius)&&(!forwardOnly||inPunchReach(tim.root.position,tim.root.rotation.y,npc,radius))){
-  launchNPC(npc,tim.root.position,strength,variant);points+=award(25);popEffect(npc.x,npc.z);firstNPC??=npc;
+function impact(action){
+ let points=0;const targets=impactTargets(tim.root.position,tim.heading,npcs,props.items,action);
+ for(const npc of targets.people){
+  launchNPC(npc,tim.root.position);points+=award(25);popEffect(npc.x,npc.z);
  }
- for(const prop of props.items)if(Math.hypot(prop.x-tim.root.position.x,prop.z-tim.root.position.z)<radius&&(!forwardOnly||inPunchReach(tim.root.position,tim.root.rotation.y,prop,radius))&&props.hit(prop,tim.root.position,strength)){
-  points+=award(10);popEffect(prop.x,prop.z);audio.effect('wood');
+ for(const prop of targets.props)if(props.hit(prop,tim.root.position,.9)){
+  points+=award(10);popEffect(prop.x,prop.z,'kick');
  }
- if(points){showScore(points,title);feedback(firstNPC||tim,PHRASES[Math.floor(random()*PHRASES.length)]);}
- else if(!forwardOnly&&variant!==1)popEffect(tim.root.position.x+Math.sin(tim.root.rotation.y),tim.root.position.z+Math.cos(tim.root.rotation.y));
- audio.effect(variant===1?'stomp':'bump');
+ if(points){showScore(points,action==='kick'?'ZACK! FUSSTRITT':'POW! FAUSTSCHLAG');if(targets.speaker)feedback(targets.speaker);}
+ audio.effect(action==='kick'?(points?'wood':'kick'):'bump');
 }
 function refill(){
- if(!started||paused||jump>0||punchAnim>0||refillCooldown>0||!canRefill(tim.root.position))return;
+ if(!started||paused||kickAnim>0||punchAnim>0||refillCooldown>0||!canRefill(tim.root.position))return;
  audio.unlock();energy=100;refillCooldown=1.5;audio.effect('wood');
  $('toast').textContent='HA, JETZT LÄUFT’S! + ENERGIE';$('toast').classList.add('visible');toastTime=2;
 }
 function updateEnergy(){
  const value=Math.ceil(energy),near=canRefill(tim.root.position);
+ const warning=started&&!paused&&energy<25,empty=energy<=0;
+ $('aperol-warning').hidden=!warning;
+ $('aperol-warning-title').textContent=empty?'APEROL LEER!':'APEROL-ALARM!';
+ $('aperol-warning-action').textContent=near?'JETZT NACHTANKEN · F / TIPPEN':empty?'Tim schleicht! Zum Stand und nachtanken.':'Zum orangefarbenen Pfeil – jetzt nachtanken!';
+ $('aperol-warning').classList.toggle('empty',empty);
+ $('energy-card').classList.toggle('empty',empty);
  $('energy-value').textContent=`${value}%`;$('energy-fill').style.width=`${energy}%`;
  $('energy-meter').setAttribute('aria-valuenow',String(value));$('energy-card').classList.toggle('low',energy<25);
- $('energy-hint').textContent=near?'Spritz-Stand erreicht · F oder Tippen':energy<25?'Zeit für a Spritz! Orange Markierung auf der Karte.':'Nachtanken am orangefarbenen Spritz-Stand';
- $('refill').hidden=!near||!started||paused;$('refill').disabled=energy>=99||refillCooldown>0||jump>0||punchAnim>0;
+ $('energy-mode').textContent=energy<25?'ALARM':'ENERGIE';
+ $('energy-hint').textContent=near?'Spritz-Stand erreicht · F oder Tippen':energy<25?'APEROL-ALARM! Nachschub am Spritz-Stand!':'Nachtanken am orangefarbenen Spritz-Stand';
+ $('refill').hidden=!near||!started||paused;$('refill').disabled=energy>=99||refillCooldown>0||kickAnim>0||punchAnim>0;
 }
 function punch(){
- audio.unlock();if(!started||paused||punchCooldown>0||jump>0)return;
+ audio.unlock();if(!started||paused||kickAnim>0||refillCooldown>0)return;if(punchCooldown>0){punchQueued=true;return;}punchQueued=false;
  punchCooldown=PUNCH_DURATION+.06;punchAnim=PUNCH_DURATION;punchPending=true;
 }
-function stomp(){
- audio.unlock();if(!started||paused||stompCooldown>0||jump>0||punchAnim>0)return;
- stompCooldown=2.4;jump=.01;jumpVelocity=6.2;landingPending=true;
+function kick(){
+ audio.unlock();if(!started||paused||kickCooldown>0||kickAnim>0||punchAnim>0||refillCooldown>0)return;
+ punchQueued=false;kickCooldown=KICK_DURATION+.12;kickAnim=KICK_DURATION;kickPending=true;
 }
 function handleChains(projectile){
- for(const npc of npcs)if(npc.cooldown<=0&&npc.air<=0&&Math.hypot(npc.x-projectile.x,npc.z-projectile.z)<1.2){
-  launchNPC(npc,projectile,.8,2);projectile.chain=true;showScore(award(40),'KETTENREAKTION!');feedback(npc,PHRASES[6]);break;
- }
  for(const target of props.items)if(target!==projectile&&!target.down&&Math.hypot(target.x-projectile.x,target.z-projectile.z)<1.1&&props.hit(target,projectile,.7)){
   projectile.chain=true;showScore(award(15),'DOMINO!');break;
  }
 }
 window.addEventListener('keydown',e=>{
- if(['Space','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+ if(['Space','KeyX','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
  if(e.code==='Escape'&&started){setPause(!paused);return;}keys.add(e.code);
- if(e.code==='KeyF'&&!e.repeat)refill();if(e.code==='Space'&&!e.repeat)punch();if(e.code==='KeyE'&&!e.repeat)stomp();
+ if(e.code==='KeyF'&&!e.repeat)refill();if(e.code==='Space'&&!e.repeat)punch();if(e.code==='KeyX'&&!e.repeat)kick();
 });
 window.addEventListener('keyup',e=>keys.delete(e.code));
 window.addEventListener('blur',()=>{if(started)setPause(true);else resetInput();});
@@ -336,18 +372,14 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&started)se
 renderer.domElement.addEventListener('pointerdown',e=>{audio.unlock();drag={id:e.pointerId,x:e.clientX,y:e.clientY};renderer.domElement.setPointerCapture(e.pointerId);});
 renderer.domElement.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;yaw-=(e.clientX-drag.x)*.006;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-drag.y)*.004,.24,.8);drag.x=e.clientX;drag.y=e.clientY;});
 renderer.domElement.addEventListener('pointerup',()=>drag=null);renderer.domElement.addEventListener('pointercancel',()=>drag=null);
-let stickPointer=null;
-function updateStick(e){const r=$('stick').getBoundingClientRect();let x=(e.clientX-r.left-r.width/2)/(r.width*.35),y=(e.clientY-r.top-r.height/2)/(r.height*.35);const l=Math.hypot(x,y);if(l>1){x/=l;y/=l;}joystick={x,y};$('stick-knob').style.transform=`translate(${x*30}px,${y*30}px)`;}
-$('stick').onpointerdown=e=>{audio.unlock();stickPointer=e.pointerId;$('stick').setPointerCapture(e.pointerId);updateStick(e);};
-$('stick').onpointermove=e=>{if(stickPointer===e.pointerId)updateStick(e);};
-for(const event of ['pointerup','pointercancel','lostpointercapture'])$('stick').addEventListener(event,()=>{stickPointer=null;joystick={x:0,y:0};$('stick-knob').style.transform='';});
-$('refill').onclick=refill;$('punch').onclick=punch;$('stomp').onclick=stomp;
+const resetStick=bindJoystick($('stick'),value=>{joystick=value;$('stick-knob').style.transform=`translate(${value.x*30}px,${value.y*30}px)`;},()=>audio.unlock());
+bindActionButton($('refill'),refill);bindActionButton($('punch'),punch);bindActionButton($('kick'),kick);
 $('fullscreen').onclick=()=>{
  if(document.fullscreenElement)document.exitFullscreen?.();
  else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{$('audio-status').textContent='Vollbild hier nicht verfügbar';});
  else {$('audio-status').textContent='iPhone: Teilen → Zum Home-Bildschirm → Als Web-App öffnen';}
 };
-const follow=new THREE.Vector3(0,1,2),cameraGoal=new THREE.Vector3();
+const follow=new THREE.Vector3(town.start.x,1,town.start.z),cameraGoal=new THREE.Vector3();
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));}
 window.addEventListener('resize',resize);
 const map=$('map').getContext('2d');
@@ -366,65 +398,95 @@ function animate(){
  if(active){
   energy=drainEnergy(energy,dt);refillCooldown=Math.max(0,refillCooldown-dt);
   elapsed+=dt;punchCooldown=Math.max(0,punchCooldown-dt);punchAnim=Math.max(0,punchAnim-dt);
-  if(punchPending&&punchAnim<=PUNCH_DURATION-PUNCH_CONTACT){punchPending=false;impact(2.0,1,0,'POW! FAUSTSCHLAG',true);}
-  stompCooldown=Math.max(0,stompCooldown-dt);
-  $('punch').disabled=punchCooldown>0||jump>0;$('stomp').disabled=stompCooldown>0||punchAnim>0;$('stomp').style.setProperty('--ready',`${(1-stompCooldown/2.4)*100}%`);
+  if(punchPending&&punchAnim<=PUNCH_DURATION-PUNCH_CONTACT){punchPending=false;impact('punch');}
+  kickCooldown=Math.max(0,kickCooldown-dt);kickAnim=Math.max(0,kickAnim-dt);
+  if(kickPending&&kickAnim<=KICK_DURATION-KICK_CONTACT){kickPending=false;impact('kick');}
+  if(punchQueued&&punchCooldown<=0&&kickAnim<=0)punch();
+  $('punch').disabled=kickAnim>0;$('punch').classList.toggle('cooling',punchCooldown>0);
+  $('kick').disabled=kickCooldown>0||punchAnim>0;$('kick').style.setProperty('--ready',`${(1-kickCooldown/(KICK_DURATION+.12))*100}%`);
   toastTime-=dt;if(toastTime<=0)$('toast').classList.remove('visible');
   let ix=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joystick.x;
   let iz=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+joystick.y;
   const inputLength=Math.hypot(ix,iz);if(inputLength>1){ix/=inputLength;iz/=inputLength;}
-  const speed=punchAnim>0?1.2:energySpeed(energy);
+  const speed=kickAnim>0?0:punchAnim>0?Math.min(1.2,energySpeed(energy)):energySpeed(energy);
   const dx=(ix*Math.cos(yaw)+iz*Math.sin(yaw))*speed*dt,dz=(-ix*Math.sin(yaw)+iz*Math.cos(yaw))*speed*dt;
-  const next=moveWithinWorld(tim.root.position,dx,dz);tim.root.position.x=next.x;tim.root.position.z=next.z;
-  if(inputLength>.05&&punchAnim<=0){const angle=Math.atan2(dx,dz);tim.root.rotation.y+=Math.atan2(Math.sin(angle-tim.root.rotation.y),Math.cos(angle-tim.root.rotation.y))*Math.min(1,dt*14);}
-  if(jump>0){jumpVelocity-=19*dt;jump+=jumpVelocity*dt;if(jump<=0){jump=0;if(landingPending){landingPending=false;impact(4.6,1.1,1,'MARKTPLATZ-BEBEN!');popEffect(tim.root.position.x,tim.root.position.z,'stomp');}}}
-  tim.root.position.y=jump;
-  const moving=inputLength>.05;
-  if(moving)walkPhase+=dt*speed*1.9;
+  const next=moveWithinWorld(tim.root.position,dx,dz);
+  for(const n of npcs){if(n.air>0)continue;const nx=next.x-n.x,nz=next.z-n.z,d=Math.hypot(nx,nz);if(d<1.2){const length=d||1,q=moveWorld(next,nx/length*(1.2-d),nz/length*(1.2-d));next.x=q.x;next.z=q.z;}}
+  tim.root.position.x=next.x;tim.root.position.z=next.z;
+  if(inputLength>.05&&punchAnim<=0&&kickAnim<=0)turnToMovement(tim,dx,dz,dt);
+  tim.root.position.y=0;
+  const moving=inputLength>.05&&kickAnim<=0;
+  const exhaustion=THREE.MathUtils.clamp(1-energy/10,0,1);
+  if(moving)walkPhase+=dt*(speed*1.9+exhaustion*2.5);
   const phase=walkPhase;
-  const stride=moving?Math.sin(phase)*(tim.detailed?.42:.6):0;
+  const stride=moving?Math.sin(phase)*(tim.detailed?.42:.6)*(1-exhaustion*.52):0;
   if(tim.box)poseBoxing(tim,0);
   tim.legs[0].rotation.x=stride;tim.legs[1].rotation.x=-stride;
-  poseTimArms(tim,stride,punchAnim,jump);
+  poseTimArms(tim,stride,punchAnim,0);
   if(tim.knees){tim.knees[0].rotation.x=moving?Math.max(0,-Math.sin(phase))*.55:0;tim.knees[1].rotation.x=moving?Math.max(0,Math.sin(phase))*.55:0;}
   tim.body.position.y=reducedMotion?0:Math.abs(stride)*.07;
   tim.body.rotation.z=Math.sin(elapsed*2)*.012;
   tim.body.rotation.y=0;
   tim.head.rotation.y=Math.sin(elapsed*.6)*.035;
+  applyExhaustionPose(tim,exhaustion);
   if(tim.box&&punchAnim>0){
    tim.body.position.y=0;tim.body.rotation.set(0,0,0);
    poseBoxing(tim,(PUNCH_DURATION-punchAnim)*PLAYBACK_SPEED);
   }
+  if(tim.box&&kickAnim>0){
+   tim.body.position.y=0;tim.body.rotation.set(0,0,0);poseKick(tim,KICK_DURATION-kickAnim);
+  }else if(kickAnim>0){tim.legs[0].rotation.x=-Math.sin((KICK_DURATION-kickAnim)/KICK_DURATION*Math.PI)*1.1;}
+  separatePeople(npcs,tim.root.position);
   for(const n of npcs){
    n.cooldown=Math.max(0,n.cooldown-dt);
-   if(n.air>0){
-    n.vy-=20*dt;n.air+=n.vy*dt;const pos=moveWithinWorld(n,n.vx*dt,n.vz*dt);n.x=pos.x;n.z=pos.z;
-    if(!reducedMotion){if(n.reaction===1)n.body.rotation.y+=dt*n.spin;else{n.body.rotation.z+=dt*n.spin;n.body.rotation.x+=dt*(n.reaction===2?7:2);}}
-    if(!n.animate){n.arms[0].rotation.z=.9;n.arms[1].rotation.z=-.9;}
-    if(n.air<=0){n.air=0;n.body.rotation.set(0,0,0);n.vx=0;n.vz=0;n.recovery=.45;popEffect(n.x,n.z,'stomp');}
+   if(n.flyAway||n.respawnAt>0){
+    const state=stepPassantFlight(n,dt,elapsed,tim.root.position,npcs,random);
+    if(state==='waiting'){n.root.visible=false;continue;}
+    const pivot=n.flightPivot;
+    if(state==='flying'||state==='falling'){
+     const rate=state==='falling'?.28:1;
+     pivot.rotation.x+=dt*n.spin*.7*rate;pivot.rotation.y+=dt*n.spin*rate;pivot.rotation.z+=dt*n.spin*.5*rate;
+    }else if(state==='landed'){pivot.rotation.set(0,0,Math.PI/2);}
+    else if(state==='respawned'){
+     n.root.updateMatrixWorld(true);n.root.attach(n.body);pivot.removeFromParent();n.flightPivot=null;
+     n.body.position.set(0,0,0);n.body.rotation.set(0,0,0);n.body.scale.y=1;
+    }
+    if(n.wallImpactPending){n.wallImpactPending=false;popEffect(n.x,n.z,'bump',n.air+1.4);audio.effect('wood');}
    }else{
     n.recovery=Math.max(0,(n.recovery||0)-dt);n.body.scale.y=n.recovery>0?1-Math.sin(n.recovery/.45*Math.PI)*.24:1;
     if(!n.animate){n.arms[0].rotation.z=0;n.arms[1].rotation.z=0;}
-    n.walking=stepCrowd(n,dt,elapsed);n.root.rotation.y=n.heading;
+    if(n!==caretaker)n.walking=stepCrowd(n,dt,elapsed);n.root.rotation.set(0,n.heading,0);
     if(!n.animate){const stride=n.walking?Math.sin(elapsed*4+n.phase)*.3:0;n.legs[0].rotation.x=stride;n.legs[1].rotation.x=-stride;}
    }
-   n.animate?.(dt,n.air>0,n.recovery>0,n.walking?'walk':'chat',n.walkSpeed);
+   n.root.visible=Math.hypot(n.x-tim.root.position.x,n.z-tim.root.position.z)<155;
+   if(n.root.visible)n.animate?.(dt,n.air>0,n.recovery>0,n.walking?'walk':n===caretaker&&['sweep','repair'].includes(cleanup.stage)?'clean':'chat',n===caretaker?1.65:n.walkSpeed);
    n.root.position.set(n.x,n.air,n.z);
   }
-  props.update(dt,handleChains);
+  if(aperolAlarm.update(energy,audio.enabled&&!audio.speaking&&audio.context?.state==='running'))audio.aperolAlarm();
+  props.update(dt,handleChains);cleanup.update(dt);
+  $('kick').classList.toggle('target-ready',!!props.updateHints(tim.root.position,tim.heading,elapsed,reducedMotion));
+  caretaker.root.position.set(caretaker.x,caretaker.air,caretaker.z);caretaker.root.rotation.set(0,caretaker.heading,0);
+  broom.rotation.x=cleanup.stage==='sweep'?Math.sin(elapsed*10)*.3:0;
+  const cleanupText=cleanup.pending?`KEHRWOCHE · ${cleanup.pending} zum Aufräumen`:'KEHRWOCHE · Alles wieder sauber';
+  if($('cleanup-status').textContent!==cleanupText)$('cleanup-status').textContent=cleanupText;
   for(let i=effects.length-1;i>=0;i--){const effect=effects[i];effect.life-=dt;effect.g.scale.setScalar(1+(effect.max-effect.life)*5);if(effect.life<=0){scene.remove(effect.g);effect.g.traverse(o=>o.geometry?.dispose());effects.splice(i,1);}}
  }
- const target=started?tim.root.position.clone().add(new THREE.Vector3(0,1.7,-3)):new THREE.Vector3(0,1,-8);
- target.y=started?1.7:1;follow.lerp(target,1-Math.exp(-dt*5));const distance=started?10.5:33;
- cameraGoal.set(follow.x+Math.sin(yaw)*Math.cos(pitch)*distance,follow.y+Math.sin(pitch)*distance,follow.z+Math.cos(yaw)*Math.cos(pitch)*distance);
- camera.position.lerp(cameraGoal,1-Math.exp(-dt*5));camera.lookAt(follow);camera.updateMatrixWorld();
+ const target=tim.root.position.clone().add(new THREE.Vector3(0,1.7,0));
+ target.y=started?1.7:1;follow.lerp(target,1-Math.exp(-dt*5));const distance=started?10.5:25;
+ const blocked=p=>collides(p,.3,true),view=cameraView(follow,yaw,pitch,distance,blocked);
+ cameraGoal.set(view.x,view.y,view.z);
+ camera.position.lerp(cameraGoal,1-Math.exp(-dt*5));if(!cameraLineClear(follow,camera.position,blocked))camera.position.copy(cameraGoal);camera.lookAt(follow);camera.updateMatrixWorld();
  for(let i=bubbles.length-1;i>=0;i--){const b=bubbles[i];if(active&&!b.pinned)b.life-=dt;
   const pos=b.npc.root.position.clone().add(new THREE.Vector3(0,3.5,0)).project(camera);
   const x=THREE.MathUtils.clamp((pos.x*.5+.5)*innerWidth,95,innerWidth-95),y=THREE.MathUtils.clamp((-pos.y*.5+.5)*innerHeight,105,innerHeight-65);
-  b.el.style.left=`${x}px`;b.el.style.top=`${y}px`;b.el.style.display=pos.z>1||paused?'none':'block';
+  b.el.style.left=`${x}px`;b.el.style.top=`${y}px`;b.el.style.display=pos.z>1||paused||!b.npc.root.visible?'none':'block';
   if(b.life<=0){b.el.remove();bubbles.splice(i,1);}
  }
- updateEnergy();drawMap();renderer.render(scene,camera);
+ refillBeacon.update(energy,elapsed,camera,started,reducedMotion);
+ updateEnergy();drawMap();
+ sun.position.set(tim.root.position.x-35,55,tim.root.position.z+25);sun.target.position.set(tim.root.position.x,0,tim.root.position.z);sun.target.updateMatrixWorld();
+ document.querySelector('.location').textContent='WINNENDEN / MARKTPLATZ';
+ renderer.render(scene,camera);
 }
-camera.position.set(16,21,30);animate();
-window.__GTA_DEBUG__=()=>({started,paused,score,energy,nearSpritz:canRefill(tim.root.position),speed:energySpeed(energy),jump,detailedTim:!!tim.detailed,animatedNPCs:npcs.filter(n=>n.animate).length,sound:audio.enabled,speaking:audio.speaking,tim:{x:tim.root.position.x,z:tim.root.position.z},props:props.items.map(p=>({type:p.type,x:p.x,z:p.z,down:p.down})),airborne:npcs.filter(n=>n.air>0).length,drawCalls:renderer.info.render.calls});
+camera.position.set(town.start.x+8,12,town.start.z-15);animate();
+window.__GTA_DEBUG__=()=>({started,paused,score,energy,nearSpritz:canRefill(tim.root.position),speed:energySpeed(energy),kickAnim,punchAnim,detailedTim:!!tim.detailed,animatedNPCs:npcs.filter(n=>n.animate).length,sound:audio.enabled,speaking:audio.speaking,tim:{x:tim.root.position.x,z:tim.root.position.z},props:props.items.map(p=>({type:p.type,x:p.x,z:p.z,down:p.down})),airborne:npcs.filter(n=>n.air>0).length,drawCalls:renderer.info.render.calls});

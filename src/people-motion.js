@@ -2,7 +2,8 @@ import * as THREE from 'three';
 // Animate the downloaded character's existing skeleton, retaining its skin weights.
 export function createWalkPose(model, phase=0) {
  model.updateMatrixWorld(true);
- const find=part=>{let result;model.traverse(o=>{if(o.isBone&&new RegExp(`^CC_Base_${part}_\\d+$`).test(o.name))result=o;});if(!result)throw new Error(`Missing character joint: ${part}`);return result;};
+ const elderNames={L_Thigh:'jambe1G',R_Thigh:'jambe1D',L_Calf:'jambe2G',R_Calf:'jambe2D',L_Foot:'piedG',R_Foot:'piedD',L_Upperarm:'bras1G',R_Upperarm:'bras1D',L_Forearm:'bras2G',R_Forearm:'bras2D',Spine02:'buste',Head:'tete'};
+ const find=part=>{let result;model.traverse(o=>{if(o.isBone&&new RegExp(`^CC_Base_${part}_\\d+$`).test(o.name)||o.isBone&&elderNames[part]&&o.name.startsWith(elderNames[part]+'_'))result=o;});if(!result)throw new Error(`Missing character joint: ${part}`);return result;};
  const parts=['L_Thigh','R_Thigh','L_Calf','R_Calf','L_Foot','R_Foot','L_Upperarm','R_Upperarm','L_Forearm','R_Forearm','Spine02','Head'];
  const joints=Object.fromEntries(parts.map(part=>{
   const bone=find(part),inverse=bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
@@ -12,9 +13,9 @@ export function createWalkPose(model, phase=0) {
  const rotate=(part,x=0,z=0)=>{const j=joints[part];j.bone.quaternion.copy(j.rest);if(z)j.bone.quaternion.premultiply(q.setFromAxisAngle(j.z,z));if(x)j.bone.quaternion.premultiply(q.setFromAxisAngle(j.x,x));};
  let time=phase;
  return (dt,airborne=false,recovering=false,activity='walk',speed=1.2)=>{
-  const chatting=activity==='chat'&&!airborne&&!recovering;
+  const chatting=(activity==='chat'||activity==='clean')&&!airborne&&!recovering;
   time+=dt*(chatting?1.6:3.7*speed/1.2);
-  const stride=airborne||recovering||chatting?0:Math.sin(time)*.30;
+  const stride=airborne||recovering||chatting?0:Math.sin(time)*.34;
   for(let side=0;side<2;side++){
    const prefix=side===0?'L':'R',s=side===0?1:-1,step=stride*s;
    const knee=airborne?.38:Math.max(0,-step)*1.3;

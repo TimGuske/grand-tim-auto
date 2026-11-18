@@ -76,3 +76,50 @@ Die erste Version wurde am 17. November 2026 erfolgreich über GitHub Pages ver�
 - Drei stehende Zweiergruppen an Marktstand, Spritz-Stand und Café. Arme gestikulieren, Kopf und Oberkörper bewegen sich dezent. Keine neuen Sprachaufnahmen oder zusätzlichen Gesprächssprechblasen.
 - Nach Comic-Knockback kehren Gesprächspartner zu ihren Plätzen zurück. Erholung und Flug unterbrechen die Unterhaltung.
 - 23 Tests und Produktionsbuild erfolgreich; Rückkehr ohne Teleport und stehende Gruppen geprüft. Browser: neue Gruppen und Bewegung sichtbar, keine Konsolenfehler/-warnungen.
+
+## 18. November 2026 – getrennte Kampfaktionen (lokal)
+
+- Stampfer vollständig durch niedrigen rechten Vorwärtstritt ersetzt; linkes Standbein, Knie anziehen, strecken, zurückziehen. Keine Sprungphysik oder Druckwelle.
+- Schlag trifft ausschließlich Passanten, Tritt ausschließlich Gegenstände in einem schmalen Bereich vor dem rechten Fuß. Keine Passantenreaktion durch Tritte oder herumfliegende Gegenstände.
+- Tastatur: Leertaste Schlag, E Tritt. Touch-Schaltfläche TRITT und Hilfe aktualisiert. Aktionen sperren sich gegenseitig.
+- 33 Tests bestanden, einschließlich Treffertrennung, Richtung, Standfuß und Animation am echten Tim-Modell; Produktionsbuild erfolgreich. Browser: E kippt Kiste, +10 Fußtritt, Kehrwoche übernimmt; keine Konsolenfehler. Lokale Animationsansicht unter work/kick-review.html. Noch nicht veröffentlicht.
+
+## 18. November 2026 – X-Tritt und Musikmemo (lokal)
+
+- Fußtritt auf X umgelegt; Leertaste bleibt Schlag. Bedienhinweise aktualisiert.
+- Neues Memo „Nelkenweg 2.m4a“ vom 18. November als leise Musikschleife integriert. 65,62 Sekunden, Stereo, 160 kbit/s, Lautheit angeglichen, Fade-in 1,5 s und Fade-out 2 s. Schleife beginnt danach erneut.
+- Sprach-Ducking sowie Pause/Ton/Musik-Schalter bleiben wirksam. Keine parallelen Schleifen; Laden während Pause startet später keine Wiedergabe.
+- 34 Tests erfolgreich; fertige MP3 dekodiert und auf hörbaren Inhalt, Spitzenpegel und leise Schnittenden geprüft; Produktionsbuild erfolgreich. Noch nicht veröffentlicht.
+
+## 18. November 2026 – Gegenstandskollisionen und Aperol-Alarm (lokal)
+
+- Stehende interaktive Gegenstände in gemeinsamer Kollisions- und Wegfindungsprüfung von Tim/Passanten; kleine Bewegungsschritte verhindern Durchlaufen. Eigene Flugphysik bleibt ausgenommen. Kicken gibt den Weg frei, Aufräumen stellt Hindernisse wieder her.
+- Dezente Bodenringe bis fünf Einheiten Entfernung, stärkerer Ring am nächsten tretbaren Gegenstand; verschwindet nach Treffer. Touch-Tritt markiert erreichbares Ziel.
+- Aperol-Alarm unter 25 %: sanft pulsierender Rahmen, ALARM-Beschriftung, einmaliger leiser Dreiklang. Sprache hat Vorrang; stumm und pausiert ertönt kein Signal. Nach Nachtanken erneut scharf.
+- Browser: an Kiste gestoppt, mit X umgekippt, +10 Gegenstandspunkte; Markierung und Kehrwoche korrekt, keine Konsolenfehler. Automatische Prüfungen für Hindernis, Wegfindung, Markierung und Alarm ergänzt. Noch nicht veröffentlicht.
+
+## 18. November 2026 – sichtbare Hinweise, Tor und Comic-Flug (lokal)
+
+- Interaktionsringe breiter, heller und pulsierend, mit auslaufendem zweiten Ring. Bewegung bei reduzierter Animation abgeschaltet.
+- WINNENDEN-Tafel von 3,4 auf 5 Einheiten vergrößert; echtes lokales Winnendener Wappen ersetzt W-Platzhalter. Browseransicht am Tor geprüft.
+- Großer orangefarbener, weiß umrandeter Pfeil über dem Spritz-Stand bei Energie unter 25 %. Wippt, dreht sich zur Kamera, verschwindet nach Nachtanken. Keine Challenge eingebaut.
+- Getroffene Passanten rotieren um drei Achsen und fliegen beschleunigt aufwärts aus dem Bild. Danach 4–12 Sekunden unsichtbar, Rückkehr an kollisionsfreier Stelle mit Abstand zu Tim. Rollen und Stimmen bleiben erhalten. Hausmeister unterbricht dabei wie bisher seine Arbeit.
+- Browser: Treffer +25, älterer Passant fliegt aus dem Bild und kehrt an anderer Stelle zurück; keine Konsolenfehler. Tests für Flug, zufällige Wartezeit, sichere Rückkehr, animierte Ringe und Pfeil ergänzt.
+
+## 18. November 2026 – flachere Flüge und Wandaufprall (lokal)
+
+- Zufällige Dach-/Wandvariante ersetzt senkrechten Sofortflug. Dachflug kreuzt den Platz, steigt zunächst langsamer und passiert die Häuserzeile auf knapp 12 Einheiten Höhe; Dauer 3,2–3,7 s.
+- Wandreaktion ermittelt eine tatsächliche Gebäudefassade, hält dort kurz an, fällt auf den Boden und verschwindet erst nach 0,55 s Liegen. Comic-Aufprall mit Sternen und kurzem Geräusch. Keine grafische Gewalt.
+- Rotation um Körpermitte über temporäre Gruppierung; ursprüngliche Körperposition und Ausrichtung werden beim Wiedererscheinen wiederhergestellt.
+- Tests für beide Verläufe, sichtbare Anfangsphase, sichere Rückkehr und Wandlücken. 41 Tests erfolgreich, Produktionsbuild erfolgreich. Browser: mehrere Passanten getroffen, Dachflug und Wandreaktion sichtbar, keine Änderung an der Trennung Schlag/Tritt. Noch nicht veröffentlicht.
+
+## 18. November 2026 – freigegebene erschöpfte Haltung und klarer Alarm (lokal)
+
+- Große orange Warnkarte unter 25 % mit konkreter Handlungsaufforderung; bei 0 % APEROL LEER / Tim schleicht. Stand-Pfeil und Alarmton bleiben erhalten.
+- Geschwindigkeit bei 0 % von 3,4 auf 0,85 reduziert (normal 6,1); Schlagbewegung kann die Begrenzung nicht umgehen. Erschöpfungshaltung setzt unter 10 % zunehmend ein.
+- Finale Haltung nach mehreren isolierten Vorschauen ausdrücklich freigegeben: stärker gekrümmter Oberkörper, Kopf nach unten, eng hängende Arme, kurze pendelnde Schritte. Gemeinsames Animationsmodul für Vorschau und Spiel.
+- Spiel setzt die Pose vor jeder Aktualisierung zurück; Nachtanken stellt volle Geschwindigkeit und normale Haltung wieder her. Lokale Leertank-Vorschau mit energy-start=0; in Produktionsbuilds wird dieser Parameter ignoriert. Noch nicht veröffentlicht.
+
+## Release 0.4.0 – 18. November 2026
+
+Freigegebener Stand vor den Missionen. 41 Tests und Produktionsbuild erfolgreich. Quellcode auf main, Veröffentlichung über gh-pages. Enthält den bisherigen charmanten Marktplatz, vier kostenlose Passantenmodelle, getrennte Schlag-/Tritt-Aktionen, Dach-/Wandreaktionen, Kehrwoche, 51 Sprüche in zwei Stimmen, Musikschleife, überarbeitete Kollisionen/Kamera und den klaren Aperol-Alarm mit freigegebener Erschöpfungshaltung. Auto, verworfene Straßenerweiterung und private Originaldateien sind nicht Teil des Releases.
