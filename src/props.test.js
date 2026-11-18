@@ -57,3 +57,32 @@ test('upright props block large walking steps, are marked nearby and release col
   props.restore(p);assert.equal(collides({x:p.x,z:p.z}),true);
  }finally{setPropObstacles([]);}
 });
+
+test('caretaker may restore individual props; mission only fails when all are upright and retry is clean',async()=>{
+ const {createMission}=await import('./mission.js'),props=setup(),worker={x:10,z:-12,air:0,recovery:0,heading:0},cleanup=createCleanup(props,worker),mission=createMission();
+ mission.begin(props.items,cleanup.cleaned);mission.tick(3);const prop=props.items[0];props.hit(prop,{x:prop.x-1,z:prop.z});props.hit(props.items[1],{x:props.items[1].x-1,z:props.items[1].z});mission.observe(props.items,cleanup.cleaned);
+ let partialCleanup=false;
+ for(let i=0;i<6000&&mission.status==='running';i++){
+  mission.tick(.04);props.update(.04,()=>{});if(mission.grace<=0)cleanup.update(.04);mission.observe(props.items,cleanup.cleaned);
+  if(cleanup.cleaned===1){partialCleanup=true;assert.equal(mission.status,'running');assert.equal(mission.count,1);}
+ }
+ assert.ok(partialCleanup);assert.equal(mission.status,'lost');assert.equal(cleanup.cleaned,2);
+ cleanup.reset();for(const item of props.items)props.restore(item);mission.begin(props.items,cleanup.cleaned);
+ assert.equal(cleanup.cleaned,0);assert.equal(cleanup.pending,0);assert.equal(mission.count,0);assert.equal(mission.status,'countdown');
+ mission.tick(3);props.items.forEach(p=>props.hit(p,{x:p.x-1,z:p.z}));mission.observe(props.items,cleanup.cleaned);
+ assert.equal(mission.status,'won');mission.free();assert.equal(mission.blocksWorld,false);
+});
+
+test('caretaker clears a full square with live item collisions and keeps moving after every restored item',async()=>{
+ const {setPropObstacles,canStand}=await import('./world.js');
+ const props=setup(),worker={x:10.5,z:-15,air:0,recovery:0,heading:0},cleanup=createCleanup(props,worker,()=>1.9);
+ setPropObstacles(props.items);
+ try{
+  props.items.forEach(p=>props.hit(p,{x:p.x-.5,z:p.z-.5}));
+  for(let i=0;i<15000&&cleanup.pending;i++){
+   props.update(.04,()=>{});const before=cleanup.cleaned;cleanup.update(.04);
+   if(cleanup.cleaned>before)assert.ok(canStand(worker,.55),'worker must stand clear of the restored object');
+  }
+  assert.equal(cleanup.cleaned,props.items.length,'every item must be cleared without getting stuck');
+ }finally{setPropObstacles([]);}
+});

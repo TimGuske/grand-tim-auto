@@ -1,3 +1,5 @@
+import {createMission,nearMissionStart,MISSION_START} from './mission.js';
+import {createMissionVisuals,poseMissionVictory} from './mission-visuals.js';
 import {cameraView,cameraLineClear} from './camera.js';
 import {applyExhaustionPose} from './exhaustion-motion.js';
 import {createRefillBeacon} from './refill-beacon.js';
@@ -230,6 +232,8 @@ for (const { material, objects } of batches.values()) {
 const character=(isTim,coat='#bb7855')=>makeCharacter(isTim,coat,helpers);
 const props=createProps(helpers);setPropObstacles(props.items);
 const refillBeacon=createRefillBeacon(scene,SPRITZ_STAND);
+const mission=createMission(),missionVisuals=createMissionVisuals(scene);
+let missionPopupTime=0,missionResultShown=false,celebrationTime=0;
 
 let tim=character(true);tim.root.position.set(town.start.x,0,town.start.z);tim.heading=Math.PI;tim.root.rotation.set(0,tim.heading,0);
 // Keep the game responsive while the detailed model is transferred and decoded.
@@ -249,7 +253,7 @@ const npcs=Array.from({length:12},(_,i)=>{
  return {...avatar,...plan,air:0,vy:0,vx:0,vz:0,cooldown:0,phase:random()*6,walking:plan.behavior==='walk'};
 });
 const caretaker=npcs[10];caretaker.behavior='cleanup';caretaker.x=10.5;caretaker.z=-15;caretaker.walking=false;caretaker.root.position.set(caretaker.x,0,caretaker.z);
-const cleanup=createCleanup(props,caretaker);
+const cleanup=createCleanup(props,caretaker,()=>mission.engaged?1.9:1.65);
 const broom=new THREE.Group();
 cyl(broom,'#c5a46e',0,1,0,.035,.035,1.9,8);box(broom,'#d6a142',0,.1,0,.55,.18,.18);
 for(let i=0;i<8;i++)box(broom,'#785b37',-.24+i*.068,.025,0,.03,.15,.17);
@@ -288,6 +292,55 @@ $('help').onclick=()=>{setPause(true);$('pause-overlay').hidden=true;$('intro').
 $('portrait-continue').onclick=()=>$('rotate').classList.add('dismissed');
 $('music').onclick=()=>{audio.unlock();audio.setMusicEnabled(!audio.musicEnabled);$('music').textContent=audio.musicEnabled?'♫ MUSIK AN':'♫ MUSIK AUS';$('music').setAttribute('aria-pressed',String(audio.musicEnabled));};
 $('sound').onclick=()=>{audio.setEnabled(!audio.enabled);updateSoundButton();if(audio.enabled){audio.effect('bump');}else $('audio-status').textContent='Ton aus';};
+function canAct(){return started&&!paused&&['idle','running'].includes(mission.status);}
+function offerMission(){
+ if(!started||paused||mission.status!=='idle'||!nearMissionStart(tim.root.position))return;
+ resetInput();audio.stop();mission.offer();$('mission-total').textContent=props.items.length;$('mission-briefing').hidden=false;
+}
+function closeMissionBriefing(){mission.free();$('mission-briefing').hidden=true;setPause(false);}
+function beginMission(){
+ cleanup.reset();for(const prop of props.items)props.restore(prop);
+ if(caretaker.flightPivot){caretaker.root.attach(caretaker.body);caretaker.flightPivot.removeFromParent();caretaker.flightPivot=null;}
+ Object.assign(caretaker,{x:10.5,z:-15,air:0,vy:0,vx:0,vz:0,flyAway:false,respawnAt:0,cooldown:0,recovery:0,walking:false,heading:0});
+ caretaker.body.position.set(0,0,0);caretaker.body.rotation.set(0,0,0);caretaker.body.scale.y=1;caretaker.root.position.set(10.5,0,-15);caretaker.root.visible=true;
+ tim.root.position.set(town.start.x,0,town.start.z);tim.heading=Math.PI;tim.root.rotation.set(0,Math.PI,0);yaw=0;pitch=.26;
+ follow.set(town.start.x,1.7,town.start.z);camera.position.set(town.start.x,1.7+Math.sin(pitch)*10.5,town.start.z+Math.cos(pitch)*10.5);camera.lookAt(follow);cameraGoal.copy(camera.position);
+ tim.body.position.set(0,0,0);tim.body.rotation.set(0,0,0);if(tim.box)poseBoxing(tim,0);
+ energy=100;refillCooldown=0;punchAnim=0;punchCooldown=0;punchQueued=false;punchPending=false;kickAnim=0;kickCooldown=0;kickPending=false;
+ audio.stop();for(const b of bubbles)b.el.remove();bubbles.length=0;
+ mission.begin(props.items,cleanup.cleaned);missionResultShown=false;missionPopupTime=0;celebrationTime=0;
+ $('mission-briefing').hidden=true;$('mission-result').hidden=true;$('mission-pop').hidden=true;$('toast').classList.remove('visible');$('mission-confetti').replaceChildren();
+ setPause(false);audio.unlock();
+}
+function freeAfterMission(){
+ mission.free();missionResultShown=false;$('mission-result').hidden=true;$('mission-confetti').replaceChildren();
+ if(tim.box)poseBoxing(tim,0);tim.body.position.set(0,0,0);tim.body.rotation.set(0,0,0);setPause(false);audio.unlock();
+}
+function finishMission(){
+ if(missionResultShown||!['won','lost'].includes(mission.status))return;
+ missionResultShown=true;celebrationTime=0;resetInput();audio.stop();punchAnim=0;kickAnim=0;punchPending=false;kickPending=false;punchQueued=false;
+ $('mission-pop').hidden=true;$('toast').classList.remove('visible');const won=mission.status==='won';
+ $('mission-result').classList.toggle('won',won);$('mission-result-title').textContent=won?'MISSION GESCHAFFT':'MISSION GESCHEITERT';
+ $('mission-result-reason').textContent=won?`Alle ${mission.total} Gegenstände umgeworfen · ${mission.time.toFixed(1).replace('.',',')} Sekunden`:'Der Hausmeister hat alles wieder aufgestellt. Die Altstadt ist sauber.';
+ $('mission-retry').textContent=won?'NOCHMAL SPIELEN':'NOCHMAL VERSUCHEN';$('mission-result').hidden=false;
+ if(won&&!reducedMotion)for(let i=0;i<32;i++){const piece=document.createElement('i');piece.style.left=`${5+random()*90}%`;piece.style.background=['#ffe05c','#ff4eaa','#fff7db'][i%3];piece.style.animationDelay=`${random()*.4}s`;$('mission-confetti').append(piece);}
+}
+function observeMission(){
+ const event=mission.observe(props.items,cleanup.cleaned);if(!event)return;
+ if(event.progress){$('mission-pop').textContent=`${event.count} von ${event.total} erledigt`;$('mission-pop').hidden=false;missionPopupTime=1.3;}
+ finishMission();
+}
+function updateMissionUI(){
+ const engaged=mission.engaged;
+ $('mission-offer').hidden=!started||paused||mission.status!=='idle'||!nearMissionStart(tim.root.position);
+ $('mission-hud').hidden=!engaged;$('mission-countdown').hidden=mission.status!=='countdown';
+ $('mission-countdown').textContent=Math.ceil(mission.countdown);
+ if(engaged){
+  $('mission-count').textContent=`${mission.count} / ${mission.total}`;
+  $('mission-worker-status').textContent=mission.status==='countdown'?'Mach dich bereit!':mission.grace>0?`Hausmeister startet in ${Math.ceil(mission.grace)} s`:caretaker.air>0?'Hausmeister außer Gefecht':cleanup.pending?'Hausmeister räumt auf!':'Hausmeister wartet auf Unordnung';
+ }
+}
+$('mission-offer').onclick=offerMission;$('mission-begin').onclick=beginMission;$('mission-cancel').onclick=closeMissionBriefing;$('mission-retry').onclick=beginMission;$('mission-free').onclick=freeAfterMission;
 function speechBubble(npc,text){
  for(let i=bubbles.length-1;i>=0;i--)if(bubbles[i].npc===npc){bubbles[i].el.remove();bubbles.splice(i,1);}
  const el=document.createElement('div');el.className='bubble';el.textContent=text;$('bubbles').appendChild(el);
@@ -327,16 +380,16 @@ function impact(action){
   points+=award(10);popEffect(prop.x,prop.z,'kick');
  }
  if(points){showScore(points,action==='kick'?'ZACK! FUSSTRITT':'POW! FAUSTSCHLAG');if(targets.speaker)feedback(targets.speaker);}
- audio.effect(action==='kick'?(points?'wood':'kick'):'bump');
+ audio.effect(action==='kick'?(points?'wood':'kick'):'bump');observeMission();
 }
 function refill(){
- if(!started||paused||kickAnim>0||punchAnim>0||refillCooldown>0||!canRefill(tim.root.position))return;
+ if(!canAct()||kickAnim>0||punchAnim>0||refillCooldown>0||!canRefill(tim.root.position))return;
  audio.unlock();energy=100;refillCooldown=1.5;audio.effect('wood');
  $('toast').textContent='HA, JETZT LÄUFT’S! + ENERGIE';$('toast').classList.add('visible');toastTime=2;
 }
 function updateEnergy(){
  const value=Math.ceil(energy),near=canRefill(tim.root.position);
- const warning=started&&!paused&&energy<25,empty=energy<=0;
+ const warning=started&&!paused&&!mission.blocksWorld&&energy<25,empty=energy<=0;
  $('aperol-warning').hidden=!warning;
  $('aperol-warning-title').textContent=empty?'APEROL LEER!':'APEROL-ALARM!';
  $('aperol-warning-action').textContent=near?'JETZT NACHTANKEN · F / TIPPEN':empty?'Tim schleicht! Zum Stand und nachtanken.':'Zum orangefarbenen Pfeil – jetzt nachtanken!';
@@ -346,23 +399,30 @@ function updateEnergy(){
  $('energy-meter').setAttribute('aria-valuenow',String(value));$('energy-card').classList.toggle('low',energy<25);
  $('energy-mode').textContent=energy<25?'ALARM':'ENERGIE';
  $('energy-hint').textContent=near?'Spritz-Stand erreicht · F oder Tippen':energy<25?'APEROL-ALARM! Nachschub am Spritz-Stand!':'Nachtanken am orangefarbenen Spritz-Stand';
- $('refill').hidden=!near||!started||paused;$('refill').disabled=energy>=99||refillCooldown>0||kickAnim>0||punchAnim>0;
+ $('refill').hidden=!near||!started||paused||mission.blocksWorld||mission.status==='countdown';$('refill').disabled=energy>=99||refillCooldown>0||kickAnim>0||punchAnim>0;
 }
 function punch(){
- audio.unlock();if(!started||paused||kickAnim>0||refillCooldown>0)return;if(punchCooldown>0){punchQueued=true;return;}punchQueued=false;
+ audio.unlock();if(!canAct()||kickAnim>0||refillCooldown>0)return;if(punchCooldown>0){punchQueued=true;return;}punchQueued=false;
  punchCooldown=PUNCH_DURATION+.06;punchAnim=PUNCH_DURATION;punchPending=true;
 }
 function kick(){
- audio.unlock();if(!started||paused||kickCooldown>0||kickAnim>0||punchAnim>0||refillCooldown>0)return;
+ audio.unlock();if(!canAct()||kickCooldown>0||kickAnim>0||punchAnim>0||refillCooldown>0)return;
  punchQueued=false;kickCooldown=KICK_DURATION+.12;kickAnim=KICK_DURATION;kickPending=true;
 }
 function handleChains(projectile){
  for(const target of props.items)if(target!==projectile&&!target.down&&Math.hypot(target.x-projectile.x,target.z-projectile.z)<1.1&&props.hit(target,projectile,.7)){
-  projectile.chain=true;showScore(award(15),'DOMINO!');break;
+  projectile.chain=true;showScore(award(15),'DOMINO!');observeMission();break;
  }
 }
 window.addEventListener('keydown',e=>{
  if(['Space','KeyX','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+ if(mission.blocksWorld){
+  if(['Enter','KeyE','Escape','Space'].includes(e.code))e.preventDefault();
+  if(mission.status==='briefing'){if(e.code==='Escape')closeMissionBriefing();else if(!e.repeat&&['Enter','KeyE'].includes(e.code))beginMission();}
+  else if(!e.repeat){if(e.code==='Enter')beginMission();if(e.code==='Escape')freeAfterMission();}
+  return;
+ }
+ if(e.code==='KeyE'&&!e.repeat&&nearMissionStart(tim.root.position)&&mission.status==='idle'){e.preventDefault();offerMission();return;}
  if(e.code==='Escape'&&started){setPause(!paused);return;}keys.add(e.code);
  if(e.code==='KeyF'&&!e.repeat)refill();if(e.code==='Space'&&!e.repeat)punch();if(e.code==='KeyX'&&!e.repeat)kick();
 });
@@ -394,9 +454,9 @@ function drawMap(){
 }
 const timer=new THREE.Clock();
 function animate(){
- requestAnimationFrame(animate);const dt=Math.min(timer.getDelta(),.04);const active=started&&!paused;
+ requestAnimationFrame(animate);const dt=Math.min(timer.getDelta(),.04);const ticking=started&&!paused;if(ticking)mission.tick(dt);const active=ticking&&!mission.blocksWorld;
  if(active){
-  energy=drainEnergy(energy,dt);refillCooldown=Math.max(0,refillCooldown-dt);
+  if(mission.status!=='countdown')energy=drainEnergy(energy,dt);refillCooldown=Math.max(0,refillCooldown-dt);
   elapsed+=dt;punchCooldown=Math.max(0,punchCooldown-dt);punchAnim=Math.max(0,punchAnim-dt);
   if(punchPending&&punchAnim<=PUNCH_DURATION-PUNCH_CONTACT){punchPending=false;impact('punch');}
   kickCooldown=Math.max(0,kickCooldown-dt);kickAnim=Math.max(0,kickAnim-dt);
@@ -404,9 +464,11 @@ function animate(){
   if(punchQueued&&punchCooldown<=0&&kickAnim<=0)punch();
   $('punch').disabled=kickAnim>0;$('punch').classList.toggle('cooling',punchCooldown>0);
   $('kick').disabled=kickCooldown>0||punchAnim>0;$('kick').style.setProperty('--ready',`${(1-kickCooldown/(KICK_DURATION+.12))*100}%`);
+  missionPopupTime-=dt;if(missionPopupTime<=0)$('mission-pop').hidden=true;
   toastTime-=dt;if(toastTime<=0)$('toast').classList.remove('visible');
   let ix=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joystick.x;
   let iz=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+joystick.y;
+  if(mission.status==='countdown'){ix=0;iz=0;}
   const inputLength=Math.hypot(ix,iz);if(inputLength>1){ix/=inputLength;iz/=inputLength;}
   const speed=kickAnim>0?0:punchAnim>0?Math.min(1.2,energySpeed(energy)):energySpeed(energy);
   const dx=(ix*Math.cos(yaw)+iz*Math.sin(yaw))*speed*dt,dz=(-ix*Math.sin(yaw)+iz*Math.cos(yaw))*speed*dt;
@@ -459,11 +521,13 @@ function animate(){
     if(!n.animate){const stride=n.walking?Math.sin(elapsed*4+n.phase)*.3:0;n.legs[0].rotation.x=stride;n.legs[1].rotation.x=-stride;}
    }
    n.root.visible=Math.hypot(n.x-tim.root.position.x,n.z-tim.root.position.z)<155;
-   if(n.root.visible)n.animate?.(dt,n.air>0,n.recovery>0,n.walking?'walk':n===caretaker&&['sweep','repair'].includes(cleanup.stage)?'clean':'chat',n===caretaker?1.65:n.walkSpeed);
+   if(n.root.visible)n.animate?.(dt,n.air>0,n.recovery>0,n.walking?'walk':n===caretaker&&['sweep','repair'].includes(cleanup.stage)?'clean':'chat',n===caretaker?cleanup.speed:n.walkSpeed);
    n.root.position.set(n.x,n.air,n.z);
   }
   if(aperolAlarm.update(energy,audio.enabled&&!audio.speaking&&audio.context?.state==='running'))audio.aperolAlarm();
-  props.update(dt,handleChains);cleanup.update(dt);
+  props.update(dt,handleChains);
+  if(!mission.blocksWorld&&(!mission.engaged||(mission.status==='running'&&mission.grace<=0)))cleanup.update(dt);
+  observeMission();
   $('kick').classList.toggle('target-ready',!!props.updateHints(tim.root.position,tim.heading,elapsed,reducedMotion));
   caretaker.root.position.set(caretaker.x,caretaker.air,caretaker.z);caretaker.root.rotation.set(0,caretaker.heading,0);
   broom.rotation.x=cleanup.stage==='sweep'?Math.sin(elapsed*10)*.3:0;
@@ -471,6 +535,7 @@ function animate(){
   if($('cleanup-status').textContent!==cleanupText)$('cleanup-status').textContent=cleanupText;
   for(let i=effects.length-1;i>=0;i--){const effect=effects[i];effect.life-=dt;effect.g.scale.setScalar(1+(effect.max-effect.life)*5);if(effect.life<=0){scene.remove(effect.g);effect.g.traverse(o=>o.geometry?.dispose());effects.splice(i,1);}}
  }
+ if(ticking&&mission.status==='won'){celebrationTime+=dt;poseMissionVictory(tim,celebrationTime);}
  const target=tim.root.position.clone().add(new THREE.Vector3(0,1.7,0));
  target.y=started?1.7:1;follow.lerp(target,1-Math.exp(-dt*5));const distance=started?10.5:25;
  const blocked=p=>collides(p,.3,true),view=cameraView(follow,yaw,pitch,distance,blocked);
@@ -482,6 +547,7 @@ function animate(){
   b.el.style.left=`${x}px`;b.el.style.top=`${y}px`;b.el.style.display=pos.z>1||paused||!b.npc.root.visible?'none':'block';
   if(b.life<=0){b.el.remove();bubbles.splice(i,1);}
  }
+ missionVisuals.update(mission,caretaker,elapsed,started,reducedMotion);updateMissionUI();
  refillBeacon.update(energy,elapsed,camera,started,reducedMotion);
  updateEnergy();drawMap();
  sun.position.set(tim.root.position.x-35,55,tim.root.position.z+25);sun.target.position.set(tim.root.position.x,0,tim.root.position.z);sun.target.updateMatrixWorld();
@@ -489,4 +555,4 @@ function animate(){
  renderer.render(scene,camera);
 }
 camera.position.set(town.start.x+8,12,town.start.z-15);animate();
-window.__GTA_DEBUG__=()=>({started,paused,score,energy,nearSpritz:canRefill(tim.root.position),speed:energySpeed(energy),kickAnim,punchAnim,detailedTim:!!tim.detailed,animatedNPCs:npcs.filter(n=>n.animate).length,sound:audio.enabled,speaking:audio.speaking,tim:{x:tim.root.position.x,z:tim.root.position.z},props:props.items.map(p=>({type:p.type,x:p.x,z:p.z,down:p.down})),airborne:npcs.filter(n=>n.air>0).length,drawCalls:renderer.info.render.calls});
+window.__GTA_DEBUG__=()=>({started,paused,mission:{status:mission.status,count:mission.count,total:mission.total,grace:mission.grace},score,energy,nearSpritz:canRefill(tim.root.position),speed:energySpeed(energy),kickAnim,punchAnim,detailedTim:!!tim.detailed,animatedNPCs:npcs.filter(n=>n.animate).length,sound:audio.enabled,speaking:audio.speaking,tim:{x:tim.root.position.x,z:tim.root.position.z},props:props.items.map(p=>({type:p.type,x:p.x,z:p.z,down:p.down})),airborne:npcs.filter(n=>n.air>0).length,drawCalls:renderer.info.render.calls});

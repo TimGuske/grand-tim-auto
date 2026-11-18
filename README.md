@@ -1,8 +1,12 @@
 # Grand Tim Altstadt — Winnenden Unleashed
 
-Ein kleiner, endloser 3D-Comic-Spielplatz mit Vite und Three.js. Spielbare Version 0.4.0: https://timguske.github.io/grand-tim-auto/ .
+Ein kleiner, endloser 3D-Comic-Spielplatz mit Vite und Three.js. Spielbare Version 0.5.0: https://timguske.github.io/grand-tim-auto/ .
 
-## Stand 0.4.0
+## Stand 0.5.0
+
+Enthält die Mission **Kehrwoche sabotieren**: gelber Startmarker am Tor (E/Touch), Start am normalen Ausgangspunkt mit Blick zum Torturm, 16er-Livezähler, markierter Hausmeister, 12 Sekunden Vorsprung, Sieg-/Niederlage-Einblendungen mit Wiederholen/freiem Weiterspielen. Gewonnen wird bei 16 gleichzeitig umgeworfenen Gegenständen; verloren erst, wenn der Hausmeister alles wieder aufgebaut hat. Er ist in der Mission rund 15 % schneller und stellt Gegenstände mit freiem Abstand ab.
+
+## Grundspiel 0.4.0
 
 Freigegebener Marktplatz ohne Missionen: vier kostenlose Passantenmodelle, rechter Faustschlag nur für Personen und rechter Fußtritt nur für Gegenstände, zwei zufällige Comic-Flugreaktionen, dauerhaftes Chaos mit aufräumendem Hausmeister, 51 eingesprochene Sprüche in zwei Comic-Stimmen, Musikmemo als leise Schleife und deutlicher Aperol-Alarm. Bei leerem Tank schleicht Tim in der freigegebenen erschöpften Haltung. Gebäude- und Gegenstandskollisionen sowie Touch-Bedienung sind überarbeitet. Keine Autos und kein Backend.
 
@@ -106,3 +110,11 @@ Passanten erhalten zufällig eine von zwei Reaktionen: ein flacher, etwa 3,2–3
 ### Erschöpfung bei leerem Aperol-Tank
 
 Unter 25 % erscheint eine große orange Warnkarte mit konkreter Aufforderung zum Nachtanken; der Pfeil über dem Stand bleibt sichtbar. Die Laufgeschwindigkeit sinkt von 6,1 auf 0,85 Einheiten/s, also bei 0 % auf etwa ein Siebtel. Unter 10 % wird Tim zunehmend gebeugt; bei 0 % verwendet er die von Tim freigegebene erschöpfte Haltung mit gesenktem Kopf, eng hängenden Armen und kurzen Schritten. Nach dem Nachtanken ist Haltung und Geschwindigkeit sofort wieder normal. Schlagen beim Gehen umgeht die Verlangsamung nicht.
+
+## Lokaler Missionstest: Kehrwoche sabotieren
+
+Start am gelben Bodenmarker beim Tor mit E oder MISSION STARTEN. Nach dem Briefing starten Tim und Kamera am normalen Spielstartpunkt mit Blick zum Torturm. 3 Sekunden Countdown, voller Aperol-Tank und 12 Sekunden Vorsprung vor dem Hausmeister.
+
+Ziel: alle 16 Gegenstände gleichzeitig umwerfen. Aufgestellte Gegenstände senken den aktuellen Zähler; sie dürfen erneut umgetreten werden. Die Mission scheitert erst, wenn der Hausmeister nach dem ersten Umwerfen wirklich alle Gegenstände wieder aufgestellt hat (Zähler zurück auf 0). Ein sauberer Missionsstart mit 0/16 ist noch keine Niederlage.
+
+Der Hausmeister ist während der Mission pink markiert und lässt sich durch Faustschläge aufhalten. Gegenstandstreffer und Domino-Reaktionen zählen für die Mission. Sieg: Jubelpose, Konfetti und gelbe MISSION GESCHAFFT-Einblendung; Niederlage: rote MISSION GESCHEITERT-Einblendung. Danach per Button oder Enter erneut starten, oder mit FREI WEITERSPIELEN/Esc in den freien Modus zurück. Ein Neustart setzt Gegenstände, Hausmeister, Mission und Aperol zurück; freies Weiterspielen erhält den Platz-Zustand. Die Mission ist ab Version 0.5.0 enthalten.

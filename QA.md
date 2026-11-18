@@ -123,3 +123,23 @@ Die erste Version wurde am 17. November 2026 erfolgreich über GitHub Pages ver�
 ## Release 0.4.0 – 18. November 2026
 
 Freigegebener Stand vor den Missionen. 41 Tests und Produktionsbuild erfolgreich. Quellcode auf main, Veröffentlichung über gh-pages. Enthält den bisherigen charmanten Marktplatz, vier kostenlose Passantenmodelle, getrennte Schlag-/Tritt-Aktionen, Dach-/Wandreaktionen, Kehrwoche, 51 Sprüche in zwei Stimmen, Musikschleife, überarbeitete Kollisionen/Kamera und den klaren Aperol-Alarm mit freigegebener Erschöpfungshaltung. Auto, verworfene Straßenerweiterung und private Originaldateien sind nicht Teil des Releases.
+
+## Missionstest – überarbeitete Regeln (lokal, unveröffentlicht)
+
+- Bodenmarker am Tor, E/Touch → Briefing, Countdown, 16er-Zähler, Fortschritts-Popups. Hausmeister mit pinkem Diamanten und Bodenring. Sieg-/Niederlage-Dialog mit Neustart und freiem Weiterspielen. Siegpose und Konfetti.
+- Nach Nutzerkorrektur: Start am normalen Spielstartpunkt (0,7), Tim schaut zum Torturm, Kamerawinkel yaw 0 / pitch 0,26 wird zurückgesetzt.
+- Niederlage erst bei komplett wieder aufgebautem Platz nach begonnener Unordnung, nicht nach erster Reparatur. Einzelne Reparaturen reduzieren nur den Live-Zähler. 16 gleichzeitig umgeworfene Gegenstände gewinnen auch nach zwischenzeitlichem Aufräumen.
+- 46 Tests erfolgreich, darunter echter Aufräumablauf mit zwei Gegenständen: nach erster Reparatur läuft Mission weiter; erst nach zweiter/letzter Reparatur verloren. Tests für sauberen Start, spätere Siege, Countdown, Neustart und freien Modus. Produktionsbuild erfolgreich.
+- Browser: Briefing mit neuen Regeln, Missionsstart und Fortschrittsanzeige geprüft; keine Konsolenfehler. Noch nicht online veröffentlicht.
+
+Mission-Balancing: Hausmeister bewegt sich während der Mission mit 1,9 statt 1,65 Einheiten/s (rund 15 % schneller), inklusive passender Gehbewegung. Freier Modus, 12 Sekunden Vorsprung und Sieg-/Niederlagebedingungen unverändert.
+
+## Hausmeister blockiert sich nach dem Aufstellen (lokal)
+
+Fehler mit aktivierten Gegenstandskollisionen reproduziert: unmittelbar nach dem Aufstellen stand der Hausmeister im neuen Hindernis. Abstellpositionen liegen jetzt mit Abstand außerhalb des Gegenstands, Ziele werden von einer freien Seite erreicht, und Wegpunkte müssen vom tatsächlichen Standpunkt aus erreichbar sein. Nach jedem Auftrag wird die Route verworfen; bei ausbleibender Bewegung wird nach 0,6 Sekunden neu geplant.
+
+Regressionstest lässt den Hausmeister den gesamten Platz mit allen 16 Gegenständen und aktiven Kollisionen aufräumen. Nach jedem aufgestellten Gegenstand steht er kollisionsfrei und arbeitet weiter. Der Test schlug vor der Korrektur fehl und besteht jetzt. Missionstempo, Vorsprung und Missionsregeln unverändert.
+
+## Release 0.5.0 – 18. November 2026
+
+Mission Kehrwoche sabotieren einschließlich überarbeiteter Sieg-/Niederlageregeln, normaler Startkamera, etwas schnellerem Hausmeister und Korrektur der Blockade nach dem Aufstellen. 47 Tests und Produktionsbuild sind Teil der Freigabeprüfung. Veröffentlichung über gh-pages, Quellcode auf main. Private Arbeitsdateien und verworfener Auto-Prototyp sind ausgeschlossen.

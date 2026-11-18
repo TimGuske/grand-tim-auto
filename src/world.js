@@ -54,10 +54,25 @@ const grid=2.1,free=new Map();let revision=0;
 export function refreshNavigation(){free.clear();revision++;}
 const key=(x,z)=>`${x},${z}`;
 function available(x,z){const k=key(x,z);if(!free.has(k))free.set(k,canStand({x:x*grid,z:z*grid},.7));return free.get(k);}
+export function canWalkStraight(from,to,r=.65){
+ const dx=to.x-from.x,dz=to.z-from.z,steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.25));
+ for(let i=0;i<=steps;i++)if(!canStand({x:from.x+dx*i/steps,z:from.z+dz*i/steps},r))return false;
+ return true;
+}
 export function findPath(from,to){
  const end=nearestFree(to,.7),start=nearestFree(from,.7);
- function snap(p){const x=Math.round(p.x/grid),z=Math.round(p.z/grid);for(let d=0;d<5;d++)for(let i=-d;i<=d;i++)for(let j=-d;j<=d;j++)if(available(x+i,z+j))return [x+i,z+j];return [x,z];}
- const a=snap(start),b=snap(end),goal=key(...b),open=[{x:a[0],z:a[1],f:0,g:0}],best=new Map([[key(...a),0]]),parents=new Map();let last;
+ if(canWalkStraight(start,end))return [end];
+ function snap(p){
+  const x=Math.round(p.x/grid),z=Math.round(p.z/grid);
+  for(let d=0;d<5;d++){
+   const candidates=[];for(let i=-d;i<=d;i++)for(let j=-d;j<=d;j++)if(available(x+i,z+j))candidates.push([x+i,z+j]);
+   candidates.sort((a,b)=>Math.hypot(a[0]*grid-p.x,a[1]*grid-p.z)-Math.hypot(b[0]*grid-p.x,b[1]*grid-p.z));
+   for(const q of candidates)if(canWalkStraight(p,{x:q[0]*grid,z:q[1]*grid}))return q;
+  }
+  return null;
+ }
+ const a=snap(start),b=snap(end);if(!a||!b)return [];
+ const goal=key(...b),open=[{x:a[0],z:a[1],f:0,g:0}],best=new Map([[key(...a),0]]),parents=new Map();let last;
  for(let iteration=0;open.length&&iteration<12000;iteration++){
   let at=0;for(let i=1;i<open.length;i++)if(open[i].f<open[at].f)at=i;
   const cur=open.splice(at,1)[0],k=key(cur.x,cur.z);if(cur.g!==best.get(k))continue;
