@@ -122,3 +122,7 @@ Start am gelben Bodenmarker beim Tor mit E oder MISSION STARTEN. Nach dem Briefi
 Ziel: alle 16 Gegenstände gleichzeitig umwerfen. Aufgestellte Gegenstände senken den aktuellen Zähler; sie dürfen erneut umgetreten werden. Die Mission scheitert erst, wenn der Hausmeister nach dem ersten Umwerfen wirklich alle Gegenstände wieder aufgestellt hat (Zähler zurück auf 0). Ein sauberer Missionsstart mit 0/16 ist noch keine Niederlage.
 
 Der Hausmeister ist während der Mission pink markiert und lässt sich durch Faustschläge aufhalten. Gegenstandstreffer und Domino-Reaktionen zählen für die Mission. Sieg: Jubelpose, Konfetti und gelbe MISSION GESCHAFFT-Einblendung; Niederlage: rote MISSION GESCHEITERT-Einblendung. Danach per Button oder Enter erneut starten, oder mit FREI WEITERSPIELEN/Esc in den freien Modus zurück. Ein Neustart setzt Gegenstände, Hausmeister, Mission und Aperol zurück; freies Weiterspielen erhält den Platz-Zustand. Die Mission ist ab Version 0.5.0 enthalten.
+
+## Home-Bildschirm-Icon
+
+Version 0.5.2 enthält ein quadratisches Porträt-Logo, Apple-Touch-Icon (180 px), Manifest-Icons (192/512 px) und Browser-Favicon. Das Motiv liegt in `public/brand/grand-tim-altstadt-icon.png`. Mit dem integrierten Bildwerkzeug aus Tims Poster erstellt: „Porträt mit Beanie, Brille und Schnurrbart bewahren; quadratisches Icon mit gestapeltem weißem Schriftzug Grand Tim Altstadt und pinkem Winnenden vor Sonnenuntergang; keine Spieloberfläche, keine abgerundeten Ecken.“
