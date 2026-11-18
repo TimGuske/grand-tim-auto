@@ -18,3 +18,11 @@ freigegebenen Comic-Stimmen liegen als MP3 vor.
 
 Frühere Quaternius-Passanten (CC0) wurden durch die oben genannten Figuren ersetzt.
 Die Quellen des früheren Standes sind im lokalen Arbeitsarchiv dokumentiert.
+
+Additional characters in 0.4.0, also CC BY 4.0:
+Free Stylized Cartoon Game Boy Character Rigged by Canino3d
+https://sketchfab.com/3d-models/free-stylized-cartoon-game-boy-character-rigged-92b4b22d14194be191c0df00f6e62b3d
+Adapted: skateboard hidden, smaller textures, matte materials, existing skeleton animated, stabilized shoes.
+Animated Old Man Character by Théo Lerbeil (@supertheo)
+https://sketchfab.com/3d-models/animated-old-man-character-3f74a8547aaf422686bb28768f7ce27c
+Adapted: smaller textures, matte materials, normalized bind pose/orientation, existing skeleton animated, stabilized shoes.
