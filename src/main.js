@@ -1,3 +1,5 @@
+import {createTutorial,TUTORIAL_STEPS} from './tutorial.js';
+import {createTutorialGuide} from './tutorial-visuals.js';
 import {createMission,nearMissionStart,MISSION_START} from './mission.js';
 import {createMissionVisuals,poseMissionVictory} from './mission-visuals.js';
 import {cameraView,cameraLineClear} from './camera.js';
@@ -234,6 +236,8 @@ const props=createProps(helpers);setPropObstacles(props.items);
 const refillBeacon=createRefillBeacon(scene,SPRITZ_STAND);
 const mission=createMission(),missionVisuals=createMissionVisuals(scene);
 let missionPopupTime=0,missionResultShown=false,celebrationTime=0;
+const tutorial=createTutorial(),tutorialGuide=createTutorialGuide(scene);
+const tutorialCrate=props.items.find(p=>p.type==='crate');let tutorialPerson=null;
 
 let tim=character(true);tim.root.position.set(town.start.x,0,town.start.z);tim.heading=Math.PI;tim.root.rotation.set(0,tim.heading,0);
 // Keep the game responsive while the detailed model is transferred and decoded.
@@ -288,13 +292,56 @@ function start(){
  else audio.unlock();
 }
 $('start').onclick=start;$('resume').onclick=()=>{setPause(false);audio.unlock();};$('pause').onclick=()=>started&&setPause(!paused);
-$('help').onclick=()=>{setPause(true);$('pause-overlay').hidden=true;$('intro').hidden=false;$('start').textContent='WEITER GEHT’S ↗';};
+$('help').onclick=()=>{$('tutorial-start').hidden=mission.engaged||mission.blocksWorld;setPause(true);$('pause-overlay').hidden=true;$('intro').hidden=false;$('start').textContent='WEITER GEHT’S ↗';};
 $('portrait-continue').onclick=()=>$('rotate').classList.add('dismissed');
 $('music').onclick=()=>{audio.unlock();audio.setMusicEnabled(!audio.musicEnabled);$('music').textContent=audio.musicEnabled?'♫ MUSIK AN':'♫ MUSIK AUS';$('music').setAttribute('aria-pressed',String(audio.musicEnabled));};
 $('sound').onclick=()=>{audio.setEnabled(!audio.enabled);updateSoundButton();if(audio.enabled){audio.effect('bump');}else $('audio-status').textContent='Ton aus';};
 function canAct(){return started&&!paused&&['idle','running'].includes(mission.status);}
+function resetPlayerStart(){
+ tim.root.position.set(town.start.x,0,town.start.z);tim.heading=Math.PI;tim.root.rotation.set(0,Math.PI,0);yaw=0;pitch=.26;
+ follow.set(town.start.x,1.7,town.start.z);camera.position.set(town.start.x,1.7+Math.sin(pitch)*10.5,town.start.z+Math.cos(pitch)*10.5);camera.lookAt(follow);cameraGoal.copy(camera.position);
+ tim.body.position.set(0,0,0);tim.body.rotation.set(0,0,0);if(tim.box)poseBoxing(tim,0);
+ energy=100;refillCooldown=0;punchAnim=0;punchCooldown=0;punchQueued=false;punchPending=false;kickAnim=0;kickCooldown=0;kickPending=false;resetInput();
+}
+function finishTutorial(complete=false){
+ if(!complete)tutorial.stop();tutorialPerson=null;energy=100;$('tutorial-panel').hidden=true;
+ tutorialGuide.update(null,elapsed,reducedMotion);
+ if(complete){$('toast').textContent='TUTORIAL GESCHAFFT!';$('toast').classList.add('visible');toastTime=2.5;}
+}
+function tutorialTransition(before){
+ if(tutorial.status==='complete'){finishTutorial(true);return;}
+ if(tutorial.step===before)return;
+ if(tutorial.step==='punch'){
+  tutorialPerson=npcs.filter(n=>n!==caretaker&&n.air<=0).sort((a,b)=>Math.hypot(a.x-tim.root.position.x,a.z-tim.root.position.z)-Math.hypot(b.x-tim.root.position.x,b.z-tim.root.position.z))[0]||null;
+  if(tutorialPerson)tutorialPerson.walking=false;
+ }
+ if(tutorial.step==='empty'){energy=0;resetInput();}
+}
+function tutorialEvent(type,data){if(!tutorial.active)return;const before=tutorial.step;tutorial.event(type,data);tutorialTransition(before);}
+function startTutorial(){
+ if(mission.status!=='idle')return;start();cleanup.reset();if(tutorialCrate)props.restore(tutorialCrate);resetPlayerStart();audio.stop();
+ tutorial.start();tutorialPerson=null;$('tutorial-start').blur();$('tutorial-panel').hidden=false;
+}
+function updateTutorialUI(){
+ $('tutorial-panel').hidden=!tutorial.active||paused||mission.blocksWorld;
+ if(tutorial.active){
+  const content=tutorial.content;$('tutorial-step').textContent=`TUTORIAL · ${tutorial.index+1} / ${TUTORIAL_STEPS.length}`;
+  $('tutorial-title').textContent=content.title;$('tutorial-text').textContent=content.text;$('tutorial-task').textContent=content.task;
+ }
+ let point=null;
+ if(tutorial.active&&!paused){
+  if(tutorial.step==='move')point={x:0,z:4,y:1.1};
+  if(tutorial.step==='kick'&&tutorialCrate)point={x:tutorialCrate.x,z:tutorialCrate.z,y:2.1};
+  if(tutorial.step==='punch'&&tutorialPerson)point={x:tutorialPerson.x,z:tutorialPerson.z,y:3.9};
+  if(tutorial.step==='stand')point={x:SPRITZ_STAND.x,z:SPRITZ_STAND.z,y:4.3};
+  if(tutorial.step==='mission')point={x:MISSION_START.x,z:MISSION_START.z,y:4.3};
+ }
+ tutorialGuide.update(point,elapsed,reducedMotion);
+}
+$('tutorial-start').onclick=startTutorial;$('tutorial-skip').onclick=()=>finishTutorial(false);
 function offerMission(){
- if(!started||paused||mission.status!=='idle'||!nearMissionStart(tim.root.position))return;
+ if(!started||paused||mission.status!=='idle'||!nearMissionStart(tim.root.position)||(tutorial.active&&tutorial.step!=='mission'))return;
+ if(tutorial.active)tutorialEvent('mission');
  resetInput();audio.stop();mission.offer();$('mission-total').textContent=props.items.length;$('mission-briefing').hidden=false;
 }
 function closeMissionBriefing(){mission.free();$('mission-briefing').hidden=true;setPause(false);}
@@ -303,10 +350,7 @@ function beginMission(){
  if(caretaker.flightPivot){caretaker.root.attach(caretaker.body);caretaker.flightPivot.removeFromParent();caretaker.flightPivot=null;}
  Object.assign(caretaker,{x:10.5,z:-15,air:0,vy:0,vx:0,vz:0,flyAway:false,respawnAt:0,cooldown:0,recovery:0,walking:false,heading:0});
  caretaker.body.position.set(0,0,0);caretaker.body.rotation.set(0,0,0);caretaker.body.scale.y=1;caretaker.root.position.set(10.5,0,-15);caretaker.root.visible=true;
- tim.root.position.set(town.start.x,0,town.start.z);tim.heading=Math.PI;tim.root.rotation.set(0,Math.PI,0);yaw=0;pitch=.26;
- follow.set(town.start.x,1.7,town.start.z);camera.position.set(town.start.x,1.7+Math.sin(pitch)*10.5,town.start.z+Math.cos(pitch)*10.5);camera.lookAt(follow);cameraGoal.copy(camera.position);
- tim.body.position.set(0,0,0);tim.body.rotation.set(0,0,0);if(tim.box)poseBoxing(tim,0);
- energy=100;refillCooldown=0;punchAnim=0;punchCooldown=0;punchQueued=false;punchPending=false;kickAnim=0;kickCooldown=0;kickPending=false;
+ resetPlayerStart();
  audio.stop();for(const b of bubbles)b.el.remove();bubbles.length=0;
  mission.begin(props.items,cleanup.cleaned);missionResultShown=false;missionPopupTime=0;celebrationTime=0;
  $('mission-briefing').hidden=true;$('mission-result').hidden=true;$('mission-pop').hidden=true;$('toast').classList.remove('visible');$('mission-confetti').replaceChildren();
@@ -332,7 +376,7 @@ function observeMission(){
 }
 function updateMissionUI(){
  const engaged=mission.engaged;
- $('mission-offer').hidden=!started||paused||mission.status!=='idle'||!nearMissionStart(tim.root.position);
+ $('mission-offer').hidden=!started||paused||mission.status!=='idle'||!nearMissionStart(tim.root.position)||(tutorial.active&&tutorial.step!=='mission');
  $('mission-hud').hidden=!engaged;$('mission-countdown').hidden=mission.status!=='countdown';
  $('mission-countdown').textContent=Math.ceil(mission.countdown);
  if(engaged){
@@ -377,29 +421,31 @@ function impact(action){
   launchNPC(npc,tim.root.position);points+=award(25);popEffect(npc.x,npc.z);
  }
  for(const prop of targets.props)if(props.hit(prop,tim.root.position,.9)){
-  points+=award(10);popEffect(prop.x,prop.z,'kick');
+  points+=award(10);popEffect(prop.x,prop.z,'kick');tutorialEvent('kick',{target:prop===tutorialCrate});
  }
+ if(targets.people.length)tutorialEvent('punch',{people:targets.people.length});
  if(points){showScore(points,action==='kick'?'ZACK! FUSSTRITT':'POW! FAUSTSCHLAG');if(targets.speaker)feedback(targets.speaker);}
  audio.effect(action==='kick'?(points?'wood':'kick'):'bump');observeMission();
 }
 function refill(){
  if(!canAct()||kickAnim>0||punchAnim>0||refillCooldown>0||!canRefill(tim.root.position))return;
+ if(tutorial.active&&tutorial.step!=='refill')return;
  audio.unlock();energy=100;refillCooldown=1.5;audio.effect('wood');
- $('toast').textContent='HA, JETZT LÄUFT’S! + ENERGIE';$('toast').classList.add('visible');toastTime=2;
+ $('toast').textContent='HA, JETZT LÄUFT’S! + ENERGIE';$('toast').classList.add('visible');toastTime=2;tutorialEvent('refill');
 }
 function updateEnergy(){
  const value=Math.ceil(energy),near=canRefill(tim.root.position);
  const warning=started&&!paused&&!mission.blocksWorld&&energy<25,empty=energy<=0;
- $('aperol-warning').hidden=!warning;
+ $('aperol-warning').hidden=!warning||(near&&(!tutorial.active||tutorial.step==='refill'));
  $('aperol-warning-title').textContent=empty?'APEROL LEER!':'APEROL-ALARM!';
- $('aperol-warning-action').textContent=near?'JETZT NACHTANKEN · F / TIPPEN':empty?'Tim schleicht! Zum Stand und nachtanken.':'Zum orangefarbenen Pfeil – jetzt nachtanken!';
+ $('aperol-warning-action').textContent=tutorial.active&&tutorial.step==='empty'?'Lauf kurz los – gleich darfst du nachtanken.':near?'JETZT NACHTANKEN · F / TIPPEN':empty?'Tim schleicht! Zum Stand und nachtanken.':'Zum orangefarbenen Pfeil – jetzt nachtanken!';
  $('aperol-warning').classList.toggle('empty',empty);
  $('energy-card').classList.toggle('empty',empty);
  $('energy-value').textContent=`${value}%`;$('energy-fill').style.width=`${energy}%`;
  $('energy-meter').setAttribute('aria-valuenow',String(value));$('energy-card').classList.toggle('low',energy<25);
  $('energy-mode').textContent=energy<25?'ALARM':'ENERGIE';
- $('energy-hint').textContent=near?'Spritz-Stand erreicht · F oder Tippen':energy<25?'APEROL-ALARM! Nachschub am Spritz-Stand!':'Nachtanken am orangefarbenen Spritz-Stand';
- $('refill').hidden=!near||!started||paused||mission.blocksWorld||mission.status==='countdown';$('refill').disabled=energy>=99||refillCooldown>0||kickAnim>0||punchAnim>0;
+ $('energy-hint').textContent=tutorial.active&&tutorial.step==='empty'?'Kurzer Leertank-Test: bewege Tim.':near?'Spritz-Stand erreicht · F oder Tippen':energy<25?'APEROL-ALARM! Nachschub am Spritz-Stand!':'Nachtanken am orangefarbenen Spritz-Stand';
+ $('refill').hidden=!near||!started||paused||mission.blocksWorld||mission.status==='countdown'||(tutorial.active&&tutorial.step!=='refill');$('refill').disabled=energy>=99||refillCooldown>0||kickAnim>0||punchAnim>0||(tutorial.active&&tutorial.step!=='refill');
 }
 function punch(){
  audio.unlock();if(!canAct()||kickAnim>0||refillCooldown>0)return;if(punchCooldown>0){punchQueued=true;return;}punchQueued=false;
@@ -411,7 +457,7 @@ function kick(){
 }
 function handleChains(projectile){
  for(const target of props.items)if(target!==projectile&&!target.down&&Math.hypot(target.x-projectile.x,target.z-projectile.z)<1.1&&props.hit(target,projectile,.7)){
-  projectile.chain=true;showScore(award(15),'DOMINO!');observeMission();break;
+  projectile.chain=true;showScore(award(15),'DOMINO!');tutorialEvent('kick',{target:target===tutorialCrate});observeMission();break;
  }
 }
 window.addEventListener('keydown',e=>{
@@ -454,9 +500,9 @@ function drawMap(){
 }
 const timer=new THREE.Clock();
 function animate(){
- requestAnimationFrame(animate);const dt=Math.min(timer.getDelta(),.04);const ticking=started&&!paused;if(ticking)mission.tick(dt);const active=ticking&&!mission.blocksWorld;
+ requestAnimationFrame(animate);const dt=Math.min(timer.getDelta(),.04);const ticking=started&&!paused;if(ticking){mission.tick(dt);if(tutorial.active){const before=tutorial.step;tutorial.tick(dt);tutorialTransition(before);}}const active=ticking&&!mission.blocksWorld;
  if(active){
-  if(mission.status!=='countdown')energy=drainEnergy(energy,dt);refillCooldown=Math.max(0,refillCooldown-dt);
+  if(tutorial.active&&['move','kick','punch','stand'].includes(tutorial.step))energy=100;else if(mission.status!=='countdown')energy=drainEnergy(energy,dt);refillCooldown=Math.max(0,refillCooldown-dt);
   elapsed+=dt;punchCooldown=Math.max(0,punchCooldown-dt);punchAnim=Math.max(0,punchAnim-dt);
   if(punchPending&&punchAnim<=PUNCH_DURATION-PUNCH_CONTACT){punchPending=false;impact('punch');}
   kickCooldown=Math.max(0,kickCooldown-dt);kickAnim=Math.max(0,kickAnim-dt);
@@ -474,7 +520,10 @@ function animate(){
   const dx=(ix*Math.cos(yaw)+iz*Math.sin(yaw))*speed*dt,dz=(-ix*Math.sin(yaw)+iz*Math.cos(yaw))*speed*dt;
   const next=moveWithinWorld(tim.root.position,dx,dz);
   for(const n of npcs){if(n.air>0)continue;const nx=next.x-n.x,nz=next.z-n.z,d=Math.hypot(nx,nz);if(d<1.2){const length=d||1,q=moveWorld(next,nx/length*(1.2-d),nz/length*(1.2-d));next.x=q.x;next.z=q.z;}}
+  const walked=Math.hypot(next.x-tim.root.position.x,next.z-tim.root.position.z);
   tim.root.position.x=next.x;tim.root.position.z=next.z;
+  if(inputLength>.05)tutorialEvent('walk',{distance:walked});
+  if(canRefill(tim.root.position))tutorialEvent('nearStand');
   if(inputLength>.05&&punchAnim<=0&&kickAnim<=0)turnToMovement(tim,dx,dz,dt);
   tim.root.position.y=0;
   const moving=inputLength>.05&&kickAnim<=0;
@@ -517,7 +566,7 @@ function animate(){
    }else{
     n.recovery=Math.max(0,(n.recovery||0)-dt);n.body.scale.y=n.recovery>0?1-Math.sin(n.recovery/.45*Math.PI)*.24:1;
     if(!n.animate){n.arms[0].rotation.z=0;n.arms[1].rotation.z=0;}
-    if(n!==caretaker)n.walking=stepCrowd(n,dt,elapsed);n.root.rotation.set(0,n.heading,0);
+    if(n!==caretaker)n.walking=tutorial.active&&tutorial.step==='punch'&&n===tutorialPerson?false:stepCrowd(n,dt,elapsed);n.root.rotation.set(0,n.heading,0);
     if(!n.animate){const stride=n.walking?Math.sin(elapsed*4+n.phase)*.3:0;n.legs[0].rotation.x=stride;n.legs[1].rotation.x=-stride;}
    }
    n.root.visible=Math.hypot(n.x-tim.root.position.x,n.z-tim.root.position.z)<155;
@@ -526,7 +575,7 @@ function animate(){
   }
   if(aperolAlarm.update(energy,audio.enabled&&!audio.speaking&&audio.context?.state==='running'))audio.aperolAlarm();
   props.update(dt,handleChains);
-  if(!mission.blocksWorld&&(!mission.engaged||(mission.status==='running'&&mission.grace<=0)))cleanup.update(dt);
+  if(!tutorial.active&&!mission.blocksWorld&&(!mission.engaged||(mission.status==='running'&&mission.grace<=0)))cleanup.update(dt);
   observeMission();
   $('kick').classList.toggle('target-ready',!!props.updateHints(tim.root.position,tim.heading,elapsed,reducedMotion));
   caretaker.root.position.set(caretaker.x,caretaker.air,caretaker.z);caretaker.root.rotation.set(0,caretaker.heading,0);
@@ -547,7 +596,7 @@ function animate(){
   b.el.style.left=`${x}px`;b.el.style.top=`${y}px`;b.el.style.display=pos.z>1||paused||!b.npc.root.visible?'none':'block';
   if(b.life<=0){b.el.remove();bubbles.splice(i,1);}
  }
- missionVisuals.update(mission,caretaker,elapsed,started,reducedMotion);updateMissionUI();
+ missionVisuals.update(mission,caretaker,elapsed,started,reducedMotion);updateMissionUI();updateTutorialUI();
  refillBeacon.update(energy,elapsed,camera,started,reducedMotion);
  updateEnergy();drawMap();
  sun.position.set(tim.root.position.x-35,55,tim.root.position.z+25);sun.target.position.set(tim.root.position.x,0,tim.root.position.z);sun.target.updateMatrixWorld();

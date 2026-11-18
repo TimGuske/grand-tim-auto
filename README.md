@@ -111,6 +111,10 @@ Passanten erhalten zufällig eine von zwei Reaktionen: ein flacher, etwa 3,2–3
 
 Unter 25 % erscheint eine große orange Warnkarte mit konkreter Aufforderung zum Nachtanken; der Pfeil über dem Stand bleibt sichtbar. Die Laufgeschwindigkeit sinkt von 6,1 auf 0,85 Einheiten/s, also bei 0 % auf etwa ein Siebtel. Unter 10 % wird Tim zunehmend gebeugt; bei 0 % verwendet er die von Tim freigegebene erschöpfte Haltung mit gesenktem Kopf, eng hängenden Armen und kurzen Schritten. Nach dem Nachtanken ist Haltung und Geschwindigkeit sofort wieder normal. Schlagen beim Gehen umgeht die Verlangsamung nicht.
 
+## Kurzes Mitmach-Tutorial
+
+Im Startbildschirm startet KURZES TUTORIAL eine optionale Einführung. Sie führt durch Laufen, eine markierte Kiste treten, einen Passanten schlagen, den Aperol-Stand finden, mit leerem Tank langsam gehen, tatsächlich nachtanken und das Missionsbriefing am gelben Tor-Marker öffnen. Jeder Schritt wartet auf die passende Aktion; bloßes Schlagen oder Treten ohne Treffer zählt nicht. Währenddessen räumt der Hausmeister nicht auf. Das Tutorial lässt sich jederzeit beenden und im freien Spiel über SO GEHT’S erneut starten.
+
 ## Lokaler Missionstest: Kehrwoche sabotieren
 
 Start am gelben Bodenmarker beim Tor mit E oder MISSION STARTEN. Nach dem Briefing starten Tim und Kamera am normalen Spielstartpunkt mit Blick zum Torturm. 3 Sekunden Countdown, voller Aperol-Tank und 12 Sekunden Vorsprung vor dem Hausmeister.

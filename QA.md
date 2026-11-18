@@ -143,3 +143,9 @@ Regressionstest lässt den Hausmeister den gesamten Platz mit allen 16 Gegenstä
 ## Release 0.5.0 – 18. November 2026
 
 Mission Kehrwoche sabotieren einschließlich überarbeiteter Sieg-/Niederlageregeln, normaler Startkamera, etwas schnellerem Hausmeister und Korrektur der Blockade nach dem Aufstellen. 47 Tests und Produktionsbuild sind Teil der Freigabeprüfung. Veröffentlichung über gh-pages, Quellcode auf main. Private Arbeitsdateien und verworfener Auto-Prototyp sind ausgeschlossen.
+# Optionales Mitmach-Tutorial
+
+- Alle sieben Schritte im lokalen Browser durchgespielt: Bewegung, Kistentreffer, Passantentreffer, Stand erreichen, leeren Tank erlaufen, mit F auffüllen und Missionsbriefing öffnen. Abschlussmeldung erscheint; keine Konsolenfehler.
+- Einstieg und Überspringen sind optional. Während des Leertank-Tests erscheint der Nachtank-Knopf erst im nächsten Schritt; am Stand überlagert ihn die Alarmkarte nicht.
+- 49 automatisierte Tests erfolgreich, inklusive Reihenfolge, echten Treffern, Leertank-Bewegung, tatsächlichem Auffüllen und Neustart nach Abbruch. Produktions-Build erfolgreich.
+- Tutorial für Veröffentlichung als Version 0.5.1 geprüft. Reales Smartphone bleibt separat zu prüfen.
